@@ -164,6 +164,7 @@ The uvm32 memory size is set at compile time with `-DUVM32_MEMORY_SIZE=X` (in by
  * [host-parallel](host-parallel) parallel vm host running multiple vm instances concurrently, with baked in bytecode
  * [host-arduino](host-arduino) vm host as Arduino sketch (tested on Arduino Uno ATmega328P, uses 9950 bytes of flash/1254 bytes RAM)
  * [apps/helloworld](apps/helloworld) C hello world program
+ * [apps/hello-asm](apps/hello-asm) Minimal hello world assembly
  * [apps/fib](apps/fib) C fibonacci series program (iterative and recursive)
  * [apps/sketch](apps/sketch) C Arduino/Wiring/Processing type program in `setup()` and `loop()` style
  * [apps/rust-hello](apps/rust-hello) Rust hello world program (note, the version of rust installed by brew on mac has issues, use the official rust installer from https://rust-lang.org/learn/get-started/)
