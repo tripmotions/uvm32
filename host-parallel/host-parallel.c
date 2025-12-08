@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
                 printf("[VM %d ended]\n", scheduler_index);
                 numVmRunning--;
             break;
-            case UVM32_EVT_UVM32_SYSCALL:    // vm has paused to handle UVM32_SYSCALL
+            case UVM32_EVT_SYSCALL:    // vm has paused to handle UVM32_SYSCALL
                 switch((f_code_t)evt.data.syscall.code) {
                     case F_PRINTD:
                         // Type of F_PRINTD is UVM32_SYSCALL_TYP_U32_WR, so expect value in evt.data.syscall.val.u32

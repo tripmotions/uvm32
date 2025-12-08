@@ -68,7 +68,7 @@ void loop(void) {
             case UVM32_EVT_END:
                 isrunning = false;
             break;
-            case UVM32_EVT_UVM32_SYSCALL:    // vm has paused to handle UVM32_SYSCALL
+            case UVM32_EVT_SYSCALL:    // vm has paused to handle UVM32_SYSCALL
                 switch((f_code_t)evt.data.syscall.code) {
                     case F_PRINTD:
                         Serial.println(evt.data.syscall.val.u32);

@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
                 printf("UVM32_EVT_ERR '%s' (%d)\n", evt.data.err.errstr, (int)evt.data.err.errcode);
                 isrunning = false;
             break;
-            case UVM32_EVT_UVM32_SYSCALL:
+            case UVM32_EVT_SYSCALL:
                 switch((f_code_t)evt.data.syscall.code) {
                     case F_PRINT:
                         printf("%.*s", evt.data.syscall.val.buf.len, evt.data.syscall.val.buf.ptr);

@@ -80,7 +80,7 @@ If the bytecode attempts to execute more instructions than the the passed value 
 * `UVM32_EVT_END` the program has ended
 * `UVM32_EVT_ERR` the program has encountered an error
 * `UVM32_EVT_YIELD` the program has called `yield()` signifying that it requires more instructions to be executed, but has not crashed/hung
-* `UVM32_EVT_UVM32_SYSCALL` the program requests some IO via the host
+* `UVM32_EVT_SYSCALL` the program requests some IO via the host
 
 ## Internals
 
@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
             case UVM32_EVT_END:
                 isrunning = false;
             break;
-            case UVM32_EVT_UVM32_SYSCALL:    // vm has paused to handle UVM32_SYSCALL
+            case UVM32_EVT_SYSCALL:    // vm has paused to handle UVM32_SYSCALL
                 switch((f_code_t)evt.data.syscall.code) {
                     case F_PRINTD:
                         // Type of F_PRINTD is UVM32_SYSCALL_TYP_U32_WR, so expect value in evt.data.syscall.val.u32

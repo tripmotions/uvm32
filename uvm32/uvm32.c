@@ -157,7 +157,7 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
                                     vmst->ioevt.data.syscall.val.u32p = &vmst->core->regs[11];
                                 break;
                             }
-                            vmst->ioevt.typ = UVM32_EVT_UVM32_SYSCALL;
+                            vmst->ioevt.typ = UVM32_EVT_SYSCALL;
                             vmst->ioevt.data.syscall.code = vmst->mappings[i].code;
                             vmst->ioevt.data.syscall.typ = vmst->mappings[i].typ;
                             setStatus(vmst, UVM32_STATUS_PAUSED);

@@ -23,7 +23,7 @@ typedef enum {
 
 typedef enum {
     UVM32_EVT_ERR,
-    UVM32_EVT_UVM32_SYSCALL,
+    UVM32_EVT_SYSCALL,
     UVM32_EVT_YIELD,
     UVM32_EVT_END,
 } uvm32_evt_typ_t;
