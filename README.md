@@ -33,6 +33,11 @@ Although based on a fully fledged CPU emulator, uvm32 is intended for executing 
     host/host precompiled/mandel.bin
     host/host precompiled/zigtris.bin
 
+Build sample apps (sets up docker for cross compiler)
+
+    cd apps
+    make
+
 Build one of the sample apps (requires docker for C, or Zig, or Rust)
 
 	cd apps/helloworld && make
@@ -78,7 +83,7 @@ If the bytecode attempts to execute more instructions than the the passed value 
 
 ## Internals
 
-uvm32 emulates a RISC-V 32bit CPU using [mini-rv32ima](https://github.com/cnlohr/mini-rv32ima). All IO from vm bytecode to the host is performed using `ecall` syscalls. Each "function" provided by the host requires a unique syscall value. A syscall passes a single `uint32_t` from bytecode to the host and may receive a returned `uint32_t`. The host may treat the value as a pointer and modify memory.
+uvm32 emulates a RISC-V 32bit CPU using [mini-rv32ima](https://github.com/cnlohr/mini-rv32ima). All IO from vm bytecode to the host is performed using `ecall` syscalls. Each syscall provided by the host requires a unique syscall value. A syscall passes a single `uint32_t` from bytecode to the host and may receive a returned `uint32_t`. The host may treat the value as a pointer and modify memory.
 
 uvm32 is always in one of 4 states, paused, running, ended or error.
 
@@ -94,6 +99,30 @@ stateDiagram
 ## Boot
 
 At boot, the whole memory is zeroed. The user program is placed at the start, the CPU registers are stored at the end. The stack pointer is set to the start of the CPU registers and grows downwards.
+
+## syscall ABI
+
+All communication between bytecode and the vm host is performed via syscalls.
+
+To make a syscall, register `a7` is set with the syscall number (an `IOREQ_x`) and `a0` is set with the syscall parameter. The response is returned in `a1`.
+
+[target.h](common/uvm32_target.h#L12)
+
+```c
+static uint32_t syscall(uint32_t id, uint32_t param) {
+    register uint32_t a0 asm("a0") = (uint32_t)(param);
+    register uint32_t a1 asm("a1");
+    register uint32_t a7 asm("a7") = (uint32_t)(id);
+
+    asm volatile (
+        "ecall"
+        : "=r"(a1) // output
+        : "r"(a0), "r"(a7) // input
+        : "memory"
+    );
+    return a1;
+}
+```
 
 ## ioreqs
 

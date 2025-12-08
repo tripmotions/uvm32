@@ -153,15 +153,13 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
                                     get_safeptr_terminated(vmst, value, 0x00, &vmst->ioevt.data.ioreq.val.buf);
                                 break;
                                 case IOREQ_TYP_U32_RD:
-//                                    get_safeptr(vmst, value, 4, &b);
-                                    vmst->ioevt.data.ioreq.val.u32p = &vmst->core->regs[11]; // r1, //(uint32_t *)b.ptr;
+                                    // pass link to r1 for user function to update
+                                    vmst->ioevt.data.ioreq.val.u32p = &vmst->core->regs[11];
                                 break;
                             }
                             vmst->ioevt.typ = UVM32_EVT_IOREQ;
                             vmst->ioevt.data.ioreq.code = vmst->mappings[i].code;
                             vmst->ioevt.data.ioreq.typ = vmst->mappings[i].typ;
-//#warning FIXME, retval
-//                            vmst->core->regs[11] = 456; // r1
                             setStatus(vmst, UVM32_STATUS_PAUSED);
                             syscall_valid = true;
                             break;  // stop searching

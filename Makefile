@@ -1,4 +1,5 @@
 all:
+	cat uvm32/uvm32.h uvm32/uvm32.c uvm32/mini-rv32ima.h common/*.h > uvm32-single-file.c
 	(cd host && make)
 	(cd host-mini && make)
 	(cd host-parallel && make)

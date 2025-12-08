@@ -34,7 +34,6 @@ static uint32_t syscall(uint32_t id, uint32_t param) {
 #define yield() syscall_cast(IOREQ_YIELD, 0)
 
 #include "uvm32_common_custom.h"
-#include "uvm32_target_custom.h"
 
 // provide main, with setup()/loop() flow
 void setup(void);
