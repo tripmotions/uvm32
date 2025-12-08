@@ -24,6 +24,7 @@ Although based on a fully fledged CPU emulator, uvm32 is intended for executing 
  * [apps/lissajous](apps/lissajous) C console lissajous curve (showing softfp, floating point)
  * [apps/hello-asm](apps/hello-asm) Minimal hello world assembly
  * [apps/fib](apps/fib) C fibonacci series program (iterative and recursive)
+ * [apps/self](apps/self) host-mini with embedded mandelbrot generation program, compiled as an app (inception!)
  * [apps/sketch](apps/sketch) C Arduino/Wiring/Processing type program in `setup()` and `loop()` style
  * [apps/rust-hello](apps/rust-hello) Rust hello world program (note, the version of rust installed by brew on mac has issues, use the official rust installer from https://rust-lang.org/learn/get-started/)
  * [apps/zig-mandel](apps/zig-mandel) Zig ASCII mandelbrot generator program
