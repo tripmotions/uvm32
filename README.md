@@ -20,6 +20,7 @@ Although based on a fully fledged CPU emulator, uvm32 is intended for executing 
  * [host-parallel](host-parallel) parallel vm host running multiple vm instances concurrently, with baked in bytecode
  * [host-arduino](host-arduino) vm host as Arduino sketch (tested on Arduino Uno ATmega328P, uses 9950 bytes of flash/1254 bytes RAM)
  * [apps/helloworld](apps/helloworld) C hello world program
+ * [apps/conio](apps/conio) C console IO demo
  * [apps/hello-asm](apps/hello-asm) Minimal hello world assembly
  * [apps/fib](apps/fib) C fibonacci series program (iterative and recursive)
  * [apps/sketch](apps/sketch) C Arduino/Wiring/Processing type program in `setup()` and `loop()` style
