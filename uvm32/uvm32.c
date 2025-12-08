@@ -67,7 +67,7 @@ bool uvm32_load(uvm32_state_t *vmst, uint8_t *rom, int len) {
 }
 
 // Read C-string up to terminator and return len,ptr
-static void get_safeptr_terminated(uvm32_state_t *vmst, uint32_t addr, uint8_t terminator, uvm32_evt_ioreq_buf_t *buf) {
+static void get_safeptr_terminated(uvm32_state_t *vmst, uint32_t addr, uint8_t terminator, uvm32_evt_syscall_buf_t *buf) {
     uint32_t ptrstart = addr - MINIRV32_RAM_IMAGE_OFFSET;
     uint32_t p = ptrstart;
     if (p >= UVM32_MEMORY_SIZE) {
@@ -90,7 +90,7 @@ static void get_safeptr_terminated(uvm32_state_t *vmst, uint32_t addr, uint8_t t
 }
 
 #if 0
-static void get_safeptr(uvm32_state_t *vmst, uint32_t addr, uint32_t len, uvm32_evt_ioreq_buf_t *buf) {
+static void get_safeptr(uvm32_state_t *vmst, uint32_t addr, uint32_t len, uvm32_evt_syscall_buf_t *buf) {
     uint32_t ptrstart = addr - MINIRV32_RAM_IMAGE_OFFSET;
     if (ptrstart + len >= UVM32_MEMORY_SIZE) {
         setStatusErr(vmst, UVM32_ERR_MEM_RD);
@@ -103,7 +103,7 @@ static void get_safeptr(uvm32_state_t *vmst, uint32_t addr, uint32_t len, uvm32_
 
 uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) {
     uint32_t num_instr = 0;
-//    uvm32_evt_ioreq_buf_t b;
+//    uvm32_evt_syscall_buf_t b;
 
     if (vmst->status != UVM32_STATUS_PAUSED) {
         setStatusErr(vmst, UVM32_ERR_NOTREADY);
@@ -127,11 +127,11 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
             vmst->core->pc += 4;
             switch(syscall) {
                 // inbuilt syscalls
-                 case IOREQ_HALT:
+                 case UVM32_SYSCALL_HALT:
                     setStatus(vmst, UVM32_STATUS_ENDED);
                     syscall_valid = true;
                 break;
-                case IOREQ_YIELD:
+                case UVM32_SYSCALL_YIELD:
                     vmst->ioevt.typ = UVM32_EVT_YIELD;
                     setStatus(vmst, UVM32_STATUS_PAUSED);
                     syscall_valid = true;
@@ -144,22 +144,22 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
                         if (syscall == vmst->mappings[i].syscall) {
                             // setup ioevt.data according to mapping typ
                             switch(vmst->mappings[i].typ) {
-                                case IOREQ_TYP_VOID:
+                                case UVM32_SYSCALL_TYP_VOID:
                                 break;
-                                case IOREQ_TYP_U32_WR:
-                                    vmst->ioevt.data.ioreq.val.u32 = value;
+                                case UVM32_SYSCALL_TYP_U32_WR:
+                                    vmst->ioevt.data.syscall.val.u32 = value;
                                 break;
-                                case IOREQ_TYP_BUF_TERMINATED_WR:
-                                    get_safeptr_terminated(vmst, value, 0x00, &vmst->ioevt.data.ioreq.val.buf);
+                                case UVM32_SYSCALL_TYP_BUF_TERMINATED_WR:
+                                    get_safeptr_terminated(vmst, value, 0x00, &vmst->ioevt.data.syscall.val.buf);
                                 break;
-                                case IOREQ_TYP_U32_RD:
+                                case UVM32_SYSCALL_TYP_U32_RD:
                                     // pass link to r1 for user function to update
-                                    vmst->ioevt.data.ioreq.val.u32p = &vmst->core->regs[11];
+                                    vmst->ioevt.data.syscall.val.u32p = &vmst->core->regs[11];
                                 break;
                             }
-                            vmst->ioevt.typ = UVM32_EVT_IOREQ;
-                            vmst->ioevt.data.ioreq.code = vmst->mappings[i].code;
-                            vmst->ioevt.data.ioreq.typ = vmst->mappings[i].typ;
+                            vmst->ioevt.typ = UVM32_EVT_UVM32_SYSCALL;
+                            vmst->ioevt.data.syscall.code = vmst->mappings[i].code;
+                            vmst->ioevt.data.syscall.typ = vmst->mappings[i].typ;
                             setStatus(vmst, UVM32_STATUS_PAUSED);
                             syscall_valid = true;
                             break;  // stop searching

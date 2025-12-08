@@ -3,7 +3,7 @@
 #include "common/uvm32_common_custom.h"
 
 // Precompiled binary program to print integers
-// This code expects to print via syscall 0x13C (IOREQ_PRINTD in common/uvm32_common_custom.h)
+// This code expects to print via syscall 0x13C (UVM32_SYSCALL_PRINTD in common/uvm32_common_custom.h)
 uint8_t rom[] = {
   0x23, 0x26, 0x11, 0x00, 0xef, 0x00, 0xc0, 0x00, 0x93, 0x08, 0x80, 0x13,
   0x73, 0x00, 0x00, 0x00, 0x37, 0xf5, 0xff, 0xff, 0xb7, 0x15, 0x00, 0x00,
@@ -34,11 +34,11 @@ typedef enum {
     F_PRINTC,
 } f_code_t;
 
-// Map VM ioreq IOREQ_PRINTD (0x13C) to F_PRINTD, tell VM to expect write of a U32
+// Map VM syscall UVM32_SYSCALL_PRINTD (0x13C) to F_PRINTD, tell VM to expect write of a U32
 const uvm32_mapping_t env[] = {
-    { IOREQ_PRINTD, F_PRINTD, IOREQ_TYP_U32_WR },
-    { IOREQ_PRINTC, F_PRINTC, IOREQ_TYP_U32_WR },
-    { IOREQ_PRINTLN, F_PRINTLN, IOREQ_TYP_BUF_TERMINATED_WR },
+    { UVM32_SYSCALL_PRINTD, F_PRINTD, UVM32_SYSCALL_TYP_U32_WR },
+    { UVM32_SYSCALL_PRINTC, F_PRINTC, UVM32_SYSCALL_TYP_U32_WR },
+    { UVM32_SYSCALL_PRINTLN, F_PRINTLN, UVM32_SYSCALL_TYP_BUF_TERMINATED_WR },
 };
 
 uvm32_state_t vmst;
@@ -68,17 +68,17 @@ void loop(void) {
             case UVM32_EVT_END:
                 isrunning = false;
             break;
-            case UVM32_EVT_IOREQ:    // vm has paused to handle IOREQ
-                switch((f_code_t)evt.data.ioreq.code) {
+            case UVM32_EVT_UVM32_SYSCALL:    // vm has paused to handle UVM32_SYSCALL
+                switch((f_code_t)evt.data.syscall.code) {
                     case F_PRINTD:
-                        Serial.println(evt.data.ioreq.val.u32);
+                        Serial.println(evt.data.syscall.val.u32);
                     break;
                     case F_PRINTC:
-                        Serial.print((char)evt.data.ioreq.val.u32);
+                        Serial.print((char)evt.data.syscall.val.u32);
                     break;
                     case F_PRINTLN:
-                        for (int i=0;i<evt.data.ioreq.val.buf.len;i++) {
-                            Serial.print((char)evt.data.ioreq.val.buf.ptr[i]);
+                        for (int i=0;i<evt.data.syscall.val.buf.len;i++) {
+                            Serial.print((char)evt.data.syscall.val.buf.ptr[i]);
                         }
                         Serial.println("");
                     break;

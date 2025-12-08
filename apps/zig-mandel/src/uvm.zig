@@ -15,14 +15,14 @@ pub inline fn syscall(id: u32, param: u32) u32 {
 }
 
 pub inline fn println(val: [:0]const u8) void {
-    _ = syscall(uvm32.IOREQ_PRINTLN, @intFromPtr(val.ptr));
+    _ = syscall(uvm32.UVM32_SYSCALL_PRINTLN, @intFromPtr(val.ptr));
 }
 
 pub inline fn yield() void {
-    _ = syscall(uvm32.IOREQ_YIELD, 0);
+    _ = syscall(uvm32.UVM32_SYSCALL_YIELD, 0);
 }
 
 pub inline fn printc(c:u8) void {
-    _ = syscall(uvm32.IOREQ_PRINTC, c);
+    _ = syscall(uvm32.UVM32_SYSCALL_PRINTC, c);
 }
 

@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// "well-known" system IOREQ functions
-#define IOREQ_HALT 0x138
-#define IOREQ_YIELD 0x139
+// "well-known" system UVM32_SYSCALL functions
+#define UVM32_SYSCALL_HALT 0x138
+#define UVM32_SYSCALL_YIELD 0x139
 
 #define LIST_OF_UVM32_ERRS \
     X(UVM32_ERR_NONE) \
@@ -26,41 +26,41 @@ typedef enum {
 
 typedef enum {
     UVM32_EVT_ERR,
-    UVM32_EVT_IOREQ,
+    UVM32_EVT_UVM32_SYSCALL,
     UVM32_EVT_YIELD,
     UVM32_EVT_END,
 } uvm32_evt_typ_t;
 
 typedef enum {
-    IOREQ_TYP_BUF_TERMINATED_WR,   // data write from vm, NULL terminated string of bytes, in uvm32_evt_ioreq_t.val.buf
-    IOREQ_TYP_VOID,     // no data
-    IOREQ_TYP_U32_WR,   // data write from vm, in uvm32_evt_ioreq_t.val.u32
-    IOREQ_TYP_U32_RD,   // data read from vm, expects response in uvm32_evt_ioreq_t.val.u32p
-} uvm32_ioreq_typ_t;
+    UVM32_SYSCALL_TYP_BUF_TERMINATED_WR,   // data write from vm, NULL terminated string of bytes, in uvm32_evt_syscall_t.val.buf
+    UVM32_SYSCALL_TYP_VOID,     // no data
+    UVM32_SYSCALL_TYP_U32_WR,   // data write from vm, in uvm32_evt_syscall_t.val.u32
+    UVM32_SYSCALL_TYP_U32_RD,   // data read from vm, expects response in uvm32_evt_syscall_t.val.u32p
+} uvm32_syscall_typ_t;
 
-typedef uint32_t uvm32_user_ioreq_code_t;
+typedef uint32_t uvm32_user_syscall_code_t;
 
-// user supplied mapping from syscall to typed ioreq
+// user supplied mapping from syscall to typed syscall
 typedef struct {
     uint32_t syscall;
-    uvm32_user_ioreq_code_t code;
-    uvm32_ioreq_typ_t typ;
+    uvm32_user_syscall_code_t code;
+    uvm32_syscall_typ_t typ;
 } uvm32_mapping_t;
 
 typedef struct {
     uint8_t *ptr;
     uint32_t len;
-} uvm32_evt_ioreq_buf_t;
+} uvm32_evt_syscall_buf_t;
 
 typedef struct {
-    uvm32_ioreq_typ_t typ;
-    uvm32_user_ioreq_code_t code;
+    uvm32_syscall_typ_t typ;
+    uvm32_user_syscall_code_t code;
     union {
-        uvm32_evt_ioreq_buf_t buf;
+        uvm32_evt_syscall_buf_t buf;
         uint32_t u32;
         uint32_t *u32p;
     } val;
-} uvm32_evt_ioreq_t;
+} uvm32_evt_syscall_t;
 
 typedef struct {
     uvm32_err_t errcode;
@@ -70,7 +70,7 @@ typedef struct {
 typedef struct {
     uvm32_evt_typ_t typ;
     union {
-        uvm32_evt_ioreq_t ioreq;
+        uvm32_evt_syscall_t syscall;
         uvm32_evt_err_t err;
     } data;
 } uvm32_evt_t;

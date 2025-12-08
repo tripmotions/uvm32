@@ -15,7 +15,7 @@ pub inline fn syscall(id: u32, param: u32) u32 {
 }
 
 pub inline fn getch() ?u8 {
-    const key = syscall(uvm32.IOREQ_GETC, 0);
+    const key = syscall(uvm32.UVM32_SYSCALL_GETC, 0);
     if (key == 0xFFFFFFFF) {
         return null;
     } else {
@@ -24,7 +24,7 @@ pub inline fn getch() ?u8 {
 }
 
 pub inline fn millis() u32 {
-    return syscall(uvm32.IOREQ_MILLIS, 0);
+    return syscall(uvm32.UVM32_SYSCALL_MILLIS, 0);
 }
 
 // dupeZ would be better, but want to avoid using an allocator
@@ -35,21 +35,21 @@ pub inline fn print(m: []const u8) void {
     @memcpy(termination_buf[0..m.len], m);
     termination_buf[m.len] = 0;
     const s = termination_buf[0..m.len :0];
-    _ = syscall(uvm32.IOREQ_PRINT, @intFromPtr(s.ptr));
+    _ = syscall(uvm32.UVM32_SYSCALL_PRINT, @intFromPtr(s.ptr));
 }
 
 pub inline fn println(m: []const u8) void {
     @memcpy(termination_buf[0..m.len], m);
     termination_buf[m.len] = 0;
     const s = termination_buf[0..m.len :0];
-    _ = syscall(uvm32.IOREQ_PRINTLN, @intFromPtr(s.ptr));
+    _ = syscall(uvm32.UVM32_SYSCALL_PRINTLN, @intFromPtr(s.ptr));
 }
 
 pub inline fn yield() void {
-    _ = syscall(uvm32.IOREQ_YIELD, 0);
+    _ = syscall(uvm32.UVM32_SYSCALL_YIELD, 0);
 }
 
 pub inline fn printc(c:u8) void {
-    _ = syscall(uvm32.IOREQ_PRINTC, c);
+    _ = syscall(uvm32.UVM32_SYSCALL_PRINTC, c);
 }
 

@@ -5,11 +5,11 @@ use core::arch::global_asm;
 use core::arch::asm;
 use core::panic::PanicInfo;
 
-// fetch IOREQ definitions from C header
+// fetch UVM32_SYSCALL definitions from C header
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 // startup code
-global_asm!(include_str!("../../crt0.S"), IOREQ_HALT = const IOREQ_HALT);
+global_asm!(include_str!("../../crt0.S"), UVM32_SYSCALL_HALT = const UVM32_SYSCALL_HALT);
 
 fn syscall(id: u32, n: u32) -> u32 {
     let mut value;
@@ -25,11 +25,11 @@ fn syscall(id: u32, n: u32) -> u32 {
 
 fn println(message: &str) {
     let addr_value = message.as_ptr() as u32;
-    syscall(IOREQ_PRINTLN, addr_value);
+    syscall(UVM32_SYSCALL_PRINTLN, addr_value);
 }
 
 fn printd(n: u32) {
-    syscall(IOREQ_PRINTD, n);
+    syscall(UVM32_SYSCALL_PRINTD, n);
 }
 
 #[no_mangle]

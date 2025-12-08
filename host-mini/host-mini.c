@@ -5,7 +5,7 @@
 #include "../common/uvm32_common_custom.h"
 
 // Precompiled binary program to print integers
-// This code expects to print via syscall 0x13C (IOREQ_PRINTD in common/uvm32_common_custom.h)
+// This code expects to print via syscall 0x13C (UVM32_SYSCALL_PRINTD in common/uvm32_common_custom.h)
 uint8_t rom[] = {
     0x23, 0x26, 0x11, 0x00, 0xef, 0x00, 0x00, 0x01, 0x93, 0x08, 0x80, 0x13,
     0x73, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x05, 0x00, 0x00,
@@ -18,9 +18,9 @@ typedef enum {
     F_PRINTD,
 } f_code_t;
 
-// Map VM ioreq IOREQ_PRINTD (0x13C) to F_PRINTD, tell VM to expect write of a U32
+// Map VM syscall UVM32_SYSCALL_PRINTD (0x13C) to F_PRINTD, tell VM to expect write of a U32
 const uvm32_mapping_t env[] = {
-    { .syscall = IOREQ_PRINTD, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTD },
+    { .syscall = UVM32_SYSCALL_PRINTD, .typ = UVM32_SYSCALL_TYP_U32_WR, .code = F_PRINTD },
 };
 
 int main(int argc, char *argv[]) {
@@ -38,11 +38,11 @@ int main(int argc, char *argv[]) {
             case UVM32_EVT_END:
                 isrunning = false;
             break;
-            case UVM32_EVT_IOREQ:    // vm has paused to handle IOREQ
-                switch((f_code_t)evt.data.ioreq.code) {
+            case UVM32_EVT_UVM32_SYSCALL:    // vm has paused to handle UVM32_SYSCALL
+                switch((f_code_t)evt.data.syscall.code) {
                     case F_PRINTD:
-                        // Type of F_PRINTD is IOREQ_TYP_U32_WR, so expect value in evt.data.ioreq.val.u32
-                        printf("%d\n", evt.data.ioreq.val.u32);
+                        // Type of F_PRINTD is UVM32_SYSCALL_TYP_U32_WR, so expect value in evt.data.syscall.val.u32
+                        printf("%d\n", evt.data.syscall.val.u32);
                     break;
                 }
             break;

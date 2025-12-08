@@ -15,7 +15,7 @@ Although based on a fully fledged CPU emulator, uvm32 is intended for executing 
 
 ## Samples
 
- * [host](host) vm host which loads a binary and runs to completion, handling multiple ioreq types
+ * [host](host) vm host which loads a binary and runs to completion, handling multiple syscall types
  * [host-mini](host-mini) minimal vm host (shown above), with baked in bytecode
  * [host-parallel](host-parallel) parallel vm host running multiple vm instances concurrently, with baked in bytecode
  * [host-arduino](host-arduino) vm host as Arduino sketch (tested on Arduino Uno ATmega328P, uses 9950 bytes of flash/1254 bytes RAM)
@@ -70,7 +70,7 @@ Once loaded with bytecode, uvm32's state is advanced by calling `uvm32_run()`.
 	uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter)
 	
 `uvm32_run()` will execute until the bytecode requests some IO activity from the host.
-These IO activities are called "ioreqs" and are the only way for bytecode to communicate with the host.
+These IO activities are called "syscalls" and are the only way for bytecode to communicate with the host.
 If the bytecode attempts to execute more instructions than the the passed value of `instr_meter` it is assumed to have crashed and an error is reported.
 
 (As with a watchdog on an embedded system, the `yield()` bytecode function tells the host that the code requires more time to complete and has not hung)
@@ -80,7 +80,7 @@ If the bytecode attempts to execute more instructions than the the passed value 
 * `UVM32_EVT_END` the program has ended
 * `UVM32_EVT_ERR` the program has encountered an error
 * `UVM32_EVT_YIELD` the program has called `yield()` signifying that it requires more instructions to be executed, but has not crashed/hung
-* `UVM32_EVT_IOREQ` the program requests some IO via the host
+* `UVM32_EVT_UVM32_SYSCALL` the program requests some IO via the host
 
 ## Internals
 
@@ -92,7 +92,7 @@ uvm32 is always in one of 4 states, paused, running, ended or error.
 stateDiagram
     [*] --> UVM32_STATUS_PAUSED : uvm32_init()
     UVM32_STATUS_PAUSED-->UVM32_STATUS_RUNNING : uvm32_run()
-    UVM32_STATUS_RUNNING --> UVM32_STATUS_PAUSED : ioreq event
+    UVM32_STATUS_RUNNING --> UVM32_STATUS_PAUSED : syscall event
     UVM32_STATUS_RUNNING --> UVM32_STATUS_ENDED : halt()
     UVM32_STATUS_RUNNING --> UVM32_STATUS_ERROR
 ```
@@ -105,7 +105,7 @@ At boot, the whole memory is zeroed. The user program is placed at the start, th
 
 All communication between bytecode and the vm host is performed via syscalls.
 
-To make a syscall, register `a7` is set with the syscall number (an `IOREQ_x`) and `a0` is set with the syscall parameter. The response is returned in `a1`.
+To make a syscall, register `a7` is set with the syscall number (a `UVM32_SYSCALL_x`) and `a0` is set with the syscall parameter. The response is returned in `a1`.
 
 [target.h](common/uvm32_target.h#L12)
 
@@ -125,14 +125,14 @@ static uint32_t syscall(uint32_t id, uint32_t param) {
 }
 ```
 
-## ioreqs
+## syscalls
 
-There are two system ioreqs used by uvm32, `halt()` and `yield()`.
+There are two system syscalls used by uvm32, `halt()` and `yield()`.
 
 `halt()` tells the host that the program has ended normally. `yield()` tells the host that the program requires more instructions to be executed.
 
-New ioreqs can be added to the host via `uvm32_init()`.
-Each ioreq maps a syscall number to a value understood by the host (`F_PRINTD` below) and has an associated type which tells the host how to interpret the data passed to the syscall.
+New syscalls can be added to the host via `uvm32_init()`.
+Each syscall maps a syscall number to a value understood by the host (`F_PRINTD` below) and has an associated type which tells the host how to interpret the data passed to the syscall.
 
 Here is a full example of a working VM host from [apps/host-mini](apps/host-mini)
 
@@ -146,7 +146,7 @@ Here is a full example of a working VM host from [apps/host-mini](apps/host-mini
 #include "../common/uvm32_common_custom.h"
 
 // Precompiled binary program to print integers
-// This code expects to print via syscall 0x13C (IOREQ_PRINTD in common/uvm32_common_custom.h)
+// This code expects to print via syscall 0x13C (UVM32_SYSCALL_PRINTD in common/uvm32_common_custom.h)
 uint8_t rom[] = {
   0x23, 0x26, 0x11, 0x00, 0xef, 0x00, 0x00, 0x01, 0x73, 0x50, 0x80, 0x13,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x93, 0x07, 0x00, 0x00,
@@ -159,9 +159,9 @@ typedef enum {
     F_PRINTD,
 } f_code_t;
 
-// Map VM ioreq IOREQ_PRINTD (0x13C) to F_PRINTD, tell VM to expect write of a U32
+// Map VM syscall UVM32_SYSCALL_PRINTD (0x13C) to F_PRINTD, tell VM to expect write of a U32
 const uvm32_mapping_t env[] = {
-    { .syscall = IOREQ_PRINTD, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTD },
+    { .syscall = UVM32_SYSCALL_PRINTD, .typ = UVM32_SYSCALL_TYP_U32_WR, .code = F_PRINTD },
 };
 
 int main(int argc, char *argv[]) {
@@ -179,11 +179,11 @@ int main(int argc, char *argv[]) {
             case UVM32_EVT_END:
                 isrunning = false;
             break;
-            case UVM32_EVT_IOREQ:    // vm has paused to handle IOREQ
-                switch((f_code_t)evt.data.ioreq.code) {
+            case UVM32_EVT_UVM32_SYSCALL:    // vm has paused to handle UVM32_SYSCALL
+                switch((f_code_t)evt.data.syscall.code) {
                     case F_PRINTD:
-                        // Type of F_PRINTD is IOREQ_TYP_U32_WR, so expect value in evt.data.ioreq.val.u32
-                        printf("%d\n", evt.data.ioreq.val.u32);
+                        // Type of F_PRINTD is UVM32_SYSCALL_TYP_U32_WR, so expect value in evt.data.syscall.val.u32
+                        printf("%d\n", evt.data.syscall.val.u32);
                     break;
                 }
             break;

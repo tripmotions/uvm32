@@ -12,7 +12,7 @@
 // stash terminal settings on startup
 static struct termios orig_termios;
 
-// ioreqs exposed to vm environement
+// syscalls exposed to vm environement
 typedef enum {
     F_PRINT,
     F_PRINTD,
@@ -23,15 +23,15 @@ typedef enum {
     F_GETC,
 } f_code_t;
 
-// Map exposed ioreqs to syscalls
+// Map exposed syscalls to syscalls
 const uvm32_mapping_t env[] = {
-    { .syscall = IOREQ_PRINTLN, .typ = IOREQ_TYP_BUF_TERMINATED_WR, .code = F_PRINTLN },
-    { .syscall = IOREQ_PRINT, .typ = IOREQ_TYP_BUF_TERMINATED_WR, .code = F_PRINT },
-    { .syscall = IOREQ_PRINTD, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTD },
-    { .syscall = IOREQ_PRINTX, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTX },
-    { .syscall = IOREQ_PRINTC, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTC },
-    { .syscall = IOREQ_MILLIS, .typ = IOREQ_TYP_U32_RD, .code = F_MILLIS },
-    { .syscall = IOREQ_GETC, .typ = IOREQ_TYP_U32_RD, .code = F_GETC },
+    { .syscall = UVM32_SYSCALL_PRINTLN, .typ = UVM32_SYSCALL_TYP_BUF_TERMINATED_WR, .code = F_PRINTLN },
+    { .syscall = UVM32_SYSCALL_PRINT, .typ = UVM32_SYSCALL_TYP_BUF_TERMINATED_WR, .code = F_PRINT },
+    { .syscall = UVM32_SYSCALL_PRINTD, .typ = UVM32_SYSCALL_TYP_U32_WR, .code = F_PRINTD },
+    { .syscall = UVM32_SYSCALL_PRINTX, .typ = UVM32_SYSCALL_TYP_U32_WR, .code = F_PRINTX },
+    { .syscall = UVM32_SYSCALL_PRINTC, .typ = UVM32_SYSCALL_TYP_U32_WR, .code = F_PRINTC },
+    { .syscall = UVM32_SYSCALL_MILLIS, .typ = UVM32_SYSCALL_TYP_U32_RD, .code = F_MILLIS },
+    { .syscall = UVM32_SYSCALL_GETC, .typ = UVM32_SYSCALL_TYP_U32_RD, .code = F_GETC },
 };
 
 void disableRawMode(void) {
@@ -159,14 +159,14 @@ int main(int argc, char *argv[]) {
     uvm32_evt_t evt;
     bool isrunning = true;
     uint32_t total_instrs = 0;
-    uint32_t num_ioreqs = 0;
+    uint32_t num_syscalls = 0;
 
     // setup terminal for getch()
     enableRawMode();
 
     while(isrunning) {
         total_instrs += uvm32_run(&vmst, &evt, 1000000);   // num instructions before vm considered hung
-        num_ioreqs++;
+        num_syscalls++;
 
         switch(evt.typ) {
             case UVM32_EVT_END:
@@ -175,57 +175,57 @@ int main(int argc, char *argv[]) {
             break;
             case UVM32_EVT_YIELD:
                 //printf("UVM32_EVT_YIELD\n");
-                // program has paused, but no ioreq
+                // program has paused, but no syscall
             break;
             case UVM32_EVT_ERR:
                 printf("UVM32_EVT_ERR '%s' (%d)\n", evt.data.err.errstr, (int)evt.data.err.errcode);
                 isrunning = false;
             break;
-            case UVM32_EVT_IOREQ:
-                switch((f_code_t)evt.data.ioreq.code) {
+            case UVM32_EVT_UVM32_SYSCALL:
+                switch((f_code_t)evt.data.syscall.code) {
                     case F_PRINT:
-                        printf("%.*s", evt.data.ioreq.val.buf.len, evt.data.ioreq.val.buf.ptr);
+                        printf("%.*s", evt.data.syscall.val.buf.len, evt.data.syscall.val.buf.ptr);
                     break;
                     case F_PRINTLN:
-                        printf("%.*s\n", evt.data.ioreq.val.buf.len, evt.data.ioreq.val.buf.ptr);
+                        printf("%.*s\n", evt.data.syscall.val.buf.len, evt.data.syscall.val.buf.ptr);
                     break;
                     case F_PRINTD:
-                        printf("%d\n", evt.data.ioreq.val.u32);
+                        printf("%d\n", evt.data.syscall.val.u32);
                     break;
                     case F_PRINTC:
-                        printf("%c", evt.data.ioreq.val.u32);
+                        printf("%c", evt.data.syscall.val.u32);
                     break;
                     case F_PRINTX:
-                        printf("%08x", evt.data.ioreq.val.u32);
+                        printf("%08x", evt.data.syscall.val.u32);
                     break;
                     case F_GETC: {
                         uint8_t ch;
                         if (poll_getch(&ch)) {
-                            *evt.data.ioreq.val.u32p = ch;
+                            *evt.data.syscall.val.u32p = ch;
                         } else {
-                            *evt.data.ioreq.val.u32p = 0xFFFFFFFF;  // nothing
+                            *evt.data.syscall.val.u32p = 0xFFFFFFFF;  // nothing
                         }
                     } break;
                     case F_MILLIS: {
                         clock_t now = clock() / (CLOCKS_PER_SEC / 1000);
-                        *evt.data.ioreq.val.u32p = now - start_time;
+                        *evt.data.syscall.val.u32p = now - start_time;
                     } break;
                     default:    // catch any others
-                        switch(evt.data.ioreq.typ) {
-                            case IOREQ_TYP_BUF_TERMINATED_WR:
-                                printf("IOREQ_TYP_BUF_TERMINATED_WR code=%d val=", evt.data.ioreq.code);
-                                hexdump(evt.data.ioreq.val.buf.ptr, evt.data.ioreq.val.buf.len);
+                        switch(evt.data.syscall.typ) {
+                            case UVM32_SYSCALL_TYP_BUF_TERMINATED_WR:
+                                printf("UVM32_SYSCALL_TYP_BUF_TERMINATED_WR code=%d val=", evt.data.syscall.code);
+                                hexdump(evt.data.syscall.val.buf.ptr, evt.data.syscall.val.buf.len);
                                 printf("\n");
                             break;
-                            case IOREQ_TYP_VOID:
-                                printf("IOREQ_TYP_VOID code=%d\n", evt.data.ioreq.code);
+                            case UVM32_SYSCALL_TYP_VOID:
+                                printf("UVM32_SYSCALL_TYP_VOID code=%d\n", evt.data.syscall.code);
                             break;
-                            case IOREQ_TYP_U32_WR:
-                                printf("IOREQ_TYP_U32_WR code=%d val=%d (0x%08x)\n", evt.data.ioreq.code, evt.data.ioreq.val.u32, evt.data.ioreq.val.u32);
+                            case UVM32_SYSCALL_TYP_U32_WR:
+                                printf("UVM32_SYSCALL_TYP_U32_WR code=%d val=%d (0x%08x)\n", evt.data.syscall.code, evt.data.syscall.val.u32, evt.data.syscall.val.u32);
                             break;
-                            case IOREQ_TYP_U32_RD:
-                                printf("IOREQ_TYP_U32_RD code=%d\n", evt.data.ioreq.code);
-                                *evt.data.ioreq.val.u32p = 123456;
+                            case UVM32_SYSCALL_TYP_U32_RD:
+                                printf("UVM32_SYSCALL_TYP_U32_RD code=%d\n", evt.data.syscall.code);
+                                *evt.data.syscall.val.u32p = 123456;
                             break;
                         }
                     break;
@@ -239,7 +239,7 @@ int main(int argc, char *argv[]) {
         fflush(stdout);
     }
 
-    printf("Executed total of %d instructions and %d ioreqs\n", (int)total_instrs, (int)num_ioreqs);
+    printf("Executed total of %d instructions and %d syscalls\n", (int)total_instrs, (int)num_syscalls);
 
     free(rom);
 

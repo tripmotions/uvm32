@@ -12,7 +12,7 @@ jal	ra, main
 #include "non-rust-crt0-hack.S"
 #else
 // only rust will see this
-li a7, {IOREQ_HALT}
+li a7, {UVM32_SYSCALL_HALT}
 #endif
 ecall
 .section .data
