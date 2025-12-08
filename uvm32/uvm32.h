@@ -13,7 +13,7 @@
     X(UVM32_ERR_NOTREADY) \
     X(UVM32_ERR_MEM_RD) \
     X(UVM32_ERR_MEM_WR) \
-    X(UVM32_ERR_BAD_CSR) \
+    X(UVM32_ERR_BAD_SYSCALL) \
     X(UVM32_ERR_HUNG) \
     X(UVM32_ERR_INTERNAL_CORE) \
     X(UVM32_ERR_INTERNAL_STATE) \
@@ -40,9 +40,9 @@ typedef enum {
 
 typedef uint32_t uvm32_user_ioreq_code_t;
 
-// user supplied mapping from csr to typed ioreq
+// user supplied mapping from syscall to typed ioreq
 typedef struct {
-    uint32_t csr;
+    uint32_t syscall;
     uvm32_user_ioreq_code_t code;
     uvm32_ioreq_typ_t typ;
 } uvm32_mapping_t;
@@ -75,11 +75,9 @@ typedef struct {
     } data;
 } uvm32_evt_t;
 
-void uvm32_HandleOtherCSRWrite(void *userdata, uint16_t csrno, uint32_t value);
 #define MINIRV32_DECORATE static
 #define MINI_RV32_RAM_SIZE UVM32_MEMORY_SIZE
 #define MINIRV32_POSTEXEC(pc, ir, retval) {if (retval > 0) return 3;}
-#define MINIRV32_OTHERCSR_WRITE(csrno, value) uvm32_HandleOtherCSRWrite(userdata, csrno, value);
 #ifndef MINIRV32_IMPLEMENTATION
 #define MINIRV32_STEPPROTO
 #endif

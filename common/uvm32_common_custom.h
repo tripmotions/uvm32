@@ -1,6 +1,6 @@
 // Definitions needed by both host and target
 
-// CSRs for exposed host functions
+// syscalls for exposed host functions
 #define IOREQ_PRINT 0x13A
 #define IOREQ_PRINTLN 0x13B
 #define IOREQ_PRINTD 0x13C

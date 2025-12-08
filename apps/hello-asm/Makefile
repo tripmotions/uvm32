@@ -10,7 +10,7 @@ CFLAGS+=-g -Os -march=rv32ima_zicsr -mabi=ilp32 -static
 LDFLAGS:= -T ../linker.ld -nostdlib -Wl,--gc-sections
 LIBS:= #-lgcc # needed for softfp
 
-SRCS=hello-asm.s
+SRCS=hello-asm.S
 
 all:
 	${PREFIX}gcc -o ${PROJECT}.elf ${CFLAGS} ${LDFLAGS} ${SRCS} ${LIBS}

@@ -4,70 +4,52 @@ const uvm32 = @cImport({
 });
 const std = @import("std");
 
+pub inline fn syscall(id: u32, param: u32) u32 {
+    var val: u32 = undefined;
+    asm volatile ("ecall"
+        : [val] "={a1}" (val),
+        : [param] "{a0}" (param),
+          [id] "{a7}" (id),
+        : .{ .memory = true });
+    return val;
+}
+
+pub inline fn getch() ?u8 {
+    const key = syscall(uvm32.IOREQ_GETC, 0);
+    if (key == 0xFFFFFFFF) {
+        return null;
+    } else {
+        return @truncate(key);
+    }
+}
+
+pub inline fn millis() u32 {
+    return syscall(uvm32.IOREQ_MILLIS, 0);
+}
+
 // dupeZ would be better, but want to avoid using an allocator
-var new_buf:[128]u8 = undefined;
+// this is of course, unsafe...
+var termination_buf:[128]u8 = undefined;
+
 pub inline fn print(m: []const u8) void {
-    @memcpy(new_buf[0..m.len], m);
-    new_buf[m.len] = 0;
-    const s = new_buf[0..m.len :0];
-
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_PRINT}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (s.ptr),
-    );
+    @memcpy(termination_buf[0..m.len], m);
+    termination_buf[m.len] = 0;
+    const s = termination_buf[0..m.len :0];
+    _ = syscall(uvm32.IOREQ_PRINT, @intFromPtr(s.ptr));
 }
 
-pub inline fn println(val: [:0]const u8) void {
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_PRINTLN}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (val.ptr),
-    );
-}
-
-pub inline fn printd(val: u32) void {
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_PRINTD}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (val),
-    );
-}
-
-pub inline fn printx(val: u32) void {
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_PRINTX}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (val),
-    );
-}
-
-pub inline fn printc(val: u32) void {
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_PRINTC}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (val),
-    );
+pub inline fn println(m: []const u8) void {
+    @memcpy(termination_buf[0..m.len], m);
+    termination_buf[m.len] = 0;
+    const s = termination_buf[0..m.len :0];
+    _ = syscall(uvm32.IOREQ_PRINTLN, @intFromPtr(s.ptr));
 }
 
 pub inline fn yield() void {
-    asm volatile (std.fmt.comptimePrint("csrwi 0x{x}, 0", .{uvm32.IOREQ_YIELD}));
+    _ = syscall(uvm32.IOREQ_YIELD, 0);
 }
 
-var millis_storage:u32 = 0;
-pub inline fn millis() u32 {
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_MILLIS}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (&millis_storage),
-    );
-    return millis_storage;
-}
-
-var getch_storage:u32 = 0;
-pub inline fn getch() ?u8 {
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_GETC}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (&getch_storage),
-    );
-    if (getch_storage <= 0xFF) {
-        return @truncate(getch_storage);
-    } else {
-        return null;
-    }
+pub inline fn printc(c:u8) void {
+    _ = syscall(uvm32.IOREQ_PRINTC, c);
 }
 

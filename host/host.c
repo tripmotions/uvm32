@@ -22,15 +22,15 @@ typedef enum {
     F_GETC,
 } f_code_t;
 
-// Map exposed ioreqs to CSRs
+// Map exposed ioreqs to syscalls
 const uvm32_mapping_t env[] = {
-    { .csr = IOREQ_PRINTLN, .typ = IOREQ_TYP_BUF_TERMINATED_WR, .code = F_PRINTLN },
-    { .csr = IOREQ_PRINT, .typ = IOREQ_TYP_BUF_TERMINATED_WR, .code = F_PRINT },
-    { .csr = IOREQ_PRINTD, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTD },
-    { .csr = IOREQ_PRINTX, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTX },
-    { .csr = IOREQ_PRINTC, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTC },
-    { .csr = IOREQ_MILLIS, .typ = IOREQ_TYP_U32_RD, .code = F_MILLIS },
-    { .csr = IOREQ_GETC, .typ = IOREQ_TYP_U32_RD, .code = F_GETC },
+    { .syscall = IOREQ_PRINTLN, .typ = IOREQ_TYP_BUF_TERMINATED_WR, .code = F_PRINTLN },
+    { .syscall = IOREQ_PRINT, .typ = IOREQ_TYP_BUF_TERMINATED_WR, .code = F_PRINT },
+    { .syscall = IOREQ_PRINTD, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTD },
+    { .syscall = IOREQ_PRINTX, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTX },
+    { .syscall = IOREQ_PRINTC, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTC },
+    { .syscall = IOREQ_MILLIS, .typ = IOREQ_TYP_U32_RD, .code = F_MILLIS },
+    { .syscall = IOREQ_GETC, .typ = IOREQ_TYP_U32_RD, .code = F_GETC },
 };
 
 void disableRawMode(void) {

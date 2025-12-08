@@ -4,35 +4,25 @@ const uvm32 = @cImport({
 });
 const std = @import("std");
 
+pub inline fn syscall(id: u32, param: u32) u32 {
+    var val: u32 = undefined;
+    asm volatile ("ecall"
+        : [val] "={a1}" (val),
+        : [param] "{a0}" (param),
+          [id] "{a7}" (id),
+        : .{ .memory = true });
+    return val;
+}
+
 pub inline fn println(val: [:0]const u8) void {
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_PRINTLN}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (val.ptr),
-    );
-}
-
-pub inline fn printd(val: u32) void {
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_PRINTD}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (val),
-    );
-}
-
-pub inline fn printx(val: u32) void {
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_PRINTX}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (val),
-    );
-}
-
-pub inline fn printc(val: u32) void {
-    asm volatile ("csrw " ++ std.fmt.comptimePrint("0x{x}", .{uvm32.IOREQ_PRINTC}) ++ ", %[arg1]"
-        :
-        : [arg1] "r" (val),
-    );
+    _ = syscall(uvm32.IOREQ_PRINTLN, @intFromPtr(val.ptr));
 }
 
 pub inline fn yield() void {
-    asm volatile (std.fmt.comptimePrint("csrwi 0x{x}, 0", .{uvm32.IOREQ_YIELD}));
+    _ = syscall(uvm32.IOREQ_YIELD, 0);
+}
+
+pub inline fn printc(c:u8) void {
+    _ = syscall(uvm32.IOREQ_PRINTC, c);
 }
 

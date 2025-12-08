@@ -24,7 +24,7 @@ static void setup_err_evt(uvm32_state_t *vmst, uvm32_evt_t *evt) {
 
 static void setStatus(uvm32_state_t *vmst, uvm32_status_t newStatus) {
     if (vmst->status == UVM32_STATUS_ERROR) {
-        // always stay in error state until a uvm32_reset()
+        // always stay in error state until a uvm32_init()
         return;
     } else {
         vmst->status = newStatus;
@@ -47,7 +47,7 @@ void uvm32_init(uvm32_state_t *vmst, const uvm32_mapping_t *mappings, uint32_t n
     // setup stack pointer
     // la	sp, _sstack
     // addi	sp,sp,-16
-    vmst->core->regs[2] = (MINIRV32_RAM_IMAGE_OFFSET + UVM32_MEMORY_SIZE) - 16;
+    vmst->core->regs[2] = (MINIRV32_RAM_IMAGE_OFFSET + UVM32_MEMORY_SIZE - sizeof(struct MiniRV32IMAState)) - 16;
     vmst->core->regs[10] = 0x00;  //hart ID
     vmst->core->regs[11] = 0;
     vmst->core->extraflags |= 3;  // Machine-mode.
@@ -67,8 +67,45 @@ bool uvm32_load(uvm32_state_t *vmst, uint8_t *rom, int len) {
     return true;
 }
 
+// Read C-string up to terminator and return len,ptr
+static void get_safeptr_terminated(uvm32_state_t *vmst, uint32_t addr, uint8_t terminator, uvm32_evt_ioreq_buf_t *buf) {
+    uint32_t ptrstart = addr - MINIRV32_RAM_IMAGE_OFFSET;
+    uint32_t p = ptrstart;
+    if (p >= UVM32_MEMORY_SIZE) {
+        setStatusErr(vmst, UVM32_ERR_MEM_RD);
+        buf->ptr = NULL;
+        buf->len = 0;
+        return;
+    }
+    while(vmst->memory[p] != terminator) {
+        p++;
+        if (p >= UVM32_MEMORY_SIZE) {
+            setStatusErr(vmst, UVM32_ERR_MEM_RD);
+            buf->ptr = NULL;
+            buf->len = 0;
+            return;
+        }
+    }
+    buf->ptr = &vmst->memory[ptrstart];
+    buf->len = p - ptrstart;
+}
+
+#if 0
+static void get_safeptr(uvm32_state_t *vmst, uint32_t addr, uint32_t len, uvm32_evt_ioreq_buf_t *buf) {
+    uint32_t ptrstart = addr - MINIRV32_RAM_IMAGE_OFFSET;
+    if (ptrstart + len >= UVM32_MEMORY_SIZE) {
+        setStatusErr(vmst, UVM32_ERR_MEM_RD);
+    }
+    buf->ptr = &vmst->memory[ptrstart];
+    buf->len = len;
+}
+#endif
+
+
 uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) {
     uint32_t num_instr = 0;
+//    uvm32_evt_ioreq_buf_t b;
+
     if (vmst->status != UVM32_STATUS_PAUSED) {
         setStatusErr(vmst, UVM32_ERR_NOTREADY);
         setup_err_evt(vmst, evt);
@@ -80,7 +117,65 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
     // run CPU until no longer in running state
     while(vmst->status == UVM32_STATUS_RUNNING) {
         uint64_t elapsedUs = 1;
-        if (0 != MiniRV32IMAStep(vmst, vmst->core, vmst->memory, 0, elapsedUs, 1)) {
+        uint32_t ret;
+        ret = MiniRV32IMAStep(vmst, vmst->core, vmst->memory, 0, elapsedUs, 1);
+        if (3 == ret) {
+            const uint32_t syscall = vmst->core->regs[17];  // a7
+            uint32_t value = vmst->core->regs[10]; // a0
+            bool syscall_valid = false;
+            // on exception we should jump to mtvec, but we handle directly
+            // and skip over the ecall instruction
+            vmst->core->pc += 4;
+            switch(syscall) {
+                // inbuilt syscalls
+                 case IOREQ_HALT:
+                    setStatus(vmst, UVM32_STATUS_ENDED);
+                    syscall_valid = true;
+                break;
+                case IOREQ_YIELD:
+                    vmst->ioevt.typ = UVM32_EVT_YIELD;
+                    setStatus(vmst, UVM32_STATUS_PAUSED);
+                    syscall_valid = true;
+                break;
+
+                // user defined syscalls
+                default:
+                    // search in mappings
+                    for (int i=0;i<vmst->numMappings;i++) {
+                        if (syscall == vmst->mappings[i].syscall) {
+                            // setup ioevt.data according to mapping typ
+                            switch(vmst->mappings[i].typ) {
+                                case IOREQ_TYP_VOID:
+                                break;
+                                case IOREQ_TYP_U32_WR:
+                                    vmst->ioevt.data.ioreq.val.u32 = value;
+                                break;
+                                case IOREQ_TYP_BUF_TERMINATED_WR:
+                                    get_safeptr_terminated(vmst, value, 0x00, &vmst->ioevt.data.ioreq.val.buf);
+                                break;
+                                case IOREQ_TYP_U32_RD:
+//                                    get_safeptr(vmst, value, 4, &b);
+                                    vmst->ioevt.data.ioreq.val.u32p = &vmst->core->regs[11]; // r1, //(uint32_t *)b.ptr;
+                                break;
+                            }
+                            vmst->ioevt.typ = UVM32_EVT_IOREQ;
+                            vmst->ioevt.data.ioreq.code = vmst->mappings[i].code;
+                            vmst->ioevt.data.ioreq.typ = vmst->mappings[i].typ;
+//#warning FIXME, retval
+//                            vmst->core->regs[11] = 456; // r1
+                            setStatus(vmst, UVM32_STATUS_PAUSED);
+                            syscall_valid = true;
+                            break;  // stop searching
+                        }
+                    }
+                    // no mapping found
+                    if (!syscall_valid) {
+                        setStatusErr(vmst, UVM32_ERR_BAD_SYSCALL);
+                    }
+                break;
+            }
+        } else if (ret != 0) {
+            // unhandled exception
             setStatusErr(vmst, UVM32_ERR_INTERNAL_CORE);
             setup_err_evt(vmst, evt);
         }
@@ -113,83 +208,6 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
             setup_err_evt(vmst, evt);
         }
         return num_instr;
-    }
-}
-
-// Read C-string up to terminator and return len,ptr
-static void get_safeptr_terminated(uvm32_state_t *vmst, uint32_t addr, uint8_t terminator, uvm32_evt_ioreq_buf_t *buf) {
-    uint32_t ptrstart = addr - MINIRV32_RAM_IMAGE_OFFSET;
-    uint32_t p = ptrstart;
-    if (p >= UVM32_MEMORY_SIZE) {
-        setStatusErr(vmst, UVM32_ERR_MEM_RD);
-        buf->ptr = NULL;
-        buf->len = 0;
-        return;
-    }
-    while(vmst->memory[p] != terminator) {
-        p++;
-        if (p >= UVM32_MEMORY_SIZE) {
-            setStatusErr(vmst, UVM32_ERR_MEM_RD);
-            buf->ptr = NULL;
-            buf->len = 0;
-            return;
-        }
-    }
-    buf->ptr = &vmst->memory[ptrstart];
-    buf->len = p - ptrstart;
-}
-
-static void get_safeptr(uvm32_state_t *vmst, uint32_t addr, uint32_t len, uvm32_evt_ioreq_buf_t *buf) {
-    uint32_t ptrstart = addr - MINIRV32_RAM_IMAGE_OFFSET;
-    if (ptrstart + len >= UVM32_MEMORY_SIZE) {
-        setStatusErr(vmst, UVM32_ERR_MEM_RD);
-    }
-    buf->ptr = &vmst->memory[ptrstart];
-    buf->len = len;
-}
-
-void uvm32_HandleOtherCSRWrite(void *userdata, uint16_t csrno, uint32_t value) {
-    uvm32_evt_ioreq_buf_t b;
-    uvm32_state_t *vmst = (uvm32_state_t *)userdata;
-
-    switch(csrno) {
-        case IOREQ_HALT:
-            setStatus(vmst, UVM32_STATUS_ENDED);
-        break;
-        case IOREQ_YIELD:
-            vmst->ioevt.typ = UVM32_EVT_YIELD;
-            setStatus(vmst, UVM32_STATUS_PAUSED);
-        break;
-
-        default:
-            // search in mappings
-            for (int i=0;i<vmst->numMappings;i++) {
-                if (csrno == vmst->mappings[i].csr) {
-                    // setup ioevt.data according to mapping typ
-                    switch(vmst->mappings[i].typ) {
-                        case IOREQ_TYP_VOID:
-                        break;
-                        case IOREQ_TYP_U32_WR:
-                            vmst->ioevt.data.ioreq.val.u32 = value;
-                        break;
-                        case IOREQ_TYP_BUF_TERMINATED_WR:
-                            get_safeptr_terminated(vmst, value, 0x00, &vmst->ioevt.data.ioreq.val.buf);
-                        break;
-                        case IOREQ_TYP_U32_RD:
-                            get_safeptr(vmst, value, 4, &b);
-                            vmst->ioevt.data.ioreq.val.u32p = (uint32_t *)b.ptr;
-                        break;
-                    }
-                    vmst->ioevt.typ = UVM32_EVT_IOREQ;
-                    vmst->ioevt.data.ioreq.code = vmst->mappings[i].code;
-                    vmst->ioevt.data.ioreq.typ = vmst->mappings[i].typ;
-                    setStatus(vmst, UVM32_STATUS_PAUSED);
-                    return;
-                }
-           }
-           // no mapping found
-           setStatusErr(vmst, UVM32_ERR_BAD_CSR);
-        break;
     }
 }
 

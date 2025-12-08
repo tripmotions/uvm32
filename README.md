@@ -78,7 +78,7 @@ If the bytecode attempts to execute more instructions than the the passed value 
 
 ## Internals
 
-uvm32 emulates a RISC-V 32bit CPU using [mini-rv32ima](https://github.com/cnlohr/mini-rv32ima). All IO from vm bytecode to the host is performed using [CSRs](https://five-embeddev.com/riscv-priv-isa-manual/Priv-v1.12/priv-csrs.html). Each "function" provided by the host requires a unique CSR value. A CSR passes a single `uint32_t` from bytecode to the host.
+uvm32 emulates a RISC-V 32bit CPU using [mini-rv32ima](https://github.com/cnlohr/mini-rv32ima). All IO from vm bytecode to the host is performed using `ecall` syscalls. Each "function" provided by the host requires a unique syscall value. A syscall passes a single `uint32_t` from bytecode to the host and may receive a returned `uint32_t`. The host may treat the value as a pointer and modify memory.
 
 uvm32 is always in one of 4 states, paused, running, ended or error.
 
@@ -102,7 +102,7 @@ There are two system ioreqs used by uvm32, `halt()` and `yield()`.
 `halt()` tells the host that the program has ended normally. `yield()` tells the host that the program requires more instructions to be executed.
 
 New ioreqs can be added to the host via `uvm32_init()`.
-Each ioreq maps a CSR number to a value understood by the host (`F_PRINTD` below) and has an associated type which tells the host how to interpret the data passed to the CSR.
+Each ioreq maps a syscall number to a value understood by the host (`F_PRINTD` below) and has an associated type which tells the host how to interpret the data passed to the syscall.
 
 Here is a full example of a working VM host from [apps/host-mini](apps/host-mini)
 
@@ -116,7 +116,7 @@ Here is a full example of a working VM host from [apps/host-mini](apps/host-mini
 #include "../common/uvm32_common_custom.h"
 
 // Precompiled binary program to print integers
-// This code expects to print via CSR 0x13C (IOREQ_PRINTD in common/uvm32_common_custom.h)
+// This code expects to print via syscall 0x13C (IOREQ_PRINTD in common/uvm32_common_custom.h)
 uint8_t rom[] = {
   0x23, 0x26, 0x11, 0x00, 0xef, 0x00, 0x00, 0x01, 0x73, 0x50, 0x80, 0x13,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x93, 0x07, 0x00, 0x00,
@@ -131,7 +131,7 @@ typedef enum {
 
 // Map VM ioreq IOREQ_PRINTD (0x13C) to F_PRINTD, tell VM to expect write of a U32
 const uvm32_mapping_t env[] = {
-    { .csr = IOREQ_PRINTD, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTD },
+    { .syscall = IOREQ_PRINTD, .typ = IOREQ_TYP_U32_WR, .code = F_PRINTD },
 };
 
 int main(int argc, char *argv[]) {
