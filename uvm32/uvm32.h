@@ -90,7 +90,7 @@ typedef enum {
 typedef struct {
     uvm32_status_t status;
     uvm32_err_t err;
-    struct MiniRV32IMAState* core;  // points at end of memory
+    struct MiniRV32IMAState core;
     uint8_t memory[UVM32_MEMORY_SIZE];
     uvm32_evt_t ioevt; // for building up in callbacks
     const uvm32_mapping_t *mappings;

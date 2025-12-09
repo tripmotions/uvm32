@@ -60,25 +60,22 @@ void uvm32_init(uvm32_state_t *vmst, const uvm32_mapping_t *mappings, uint32_t n
     vmst->status = UVM32_STATUS_PAUSED;
 
     UVM32_MEMSET(vmst->memory, 0x00, UVM32_MEMORY_SIZE);
-    // The core lives at the end of RAM.
-    vmst->core = (struct MiniRV32IMAState*)(vmst->memory + UVM32_MEMORY_SIZE - sizeof(struct MiniRV32IMAState));
-    vmst->core->pc = MINIRV32_RAM_IMAGE_OFFSET;
+    vmst->core.pc = MINIRV32_RAM_IMAGE_OFFSET;
     // https://projectf.io/posts/riscv-cheat-sheet/
     // setup stack pointer
     // la	sp, _sstack
     // addi	sp,sp,-16
-    vmst->core->regs[2] = (MINIRV32_RAM_IMAGE_OFFSET + UVM32_MEMORY_SIZE - sizeof(struct MiniRV32IMAState)) - 16;
-    vmst->core->regs[10] = 0x00;  //hart ID
-    vmst->core->regs[11] = 0;
-    vmst->core->extraflags |= 3;  // Machine-mode.
+    vmst->core.regs[2] = (MINIRV32_RAM_IMAGE_OFFSET + UVM32_MEMORY_SIZE - sizeof(struct MiniRV32IMAState)) - 16;
+    vmst->core.regs[10] = 0x00;  //hart ID
+    vmst->core.regs[11] = 0;
+    vmst->core.extraflags |= 3;  // Machine-mode.
 
     vmst->mappings = mappings;
     vmst->numMappings = numMappings;
 }
 
 bool uvm32_load(uvm32_state_t *vmst, uint8_t *rom, int len) {
-    // RAM needs at least image then MiniRV32IMAState (core)
-    if (len > UVM32_MEMORY_SIZE - sizeof(struct MiniRV32IMAState)) {
+    if (len > UVM32_MEMORY_SIZE) {
         // too big
         return false;
     }
@@ -143,14 +140,14 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
     while(vmst->status == UVM32_STATUS_RUNNING) {
         uint64_t elapsedUs = 1;
         uint32_t ret;
-        ret = MiniRV32IMAStep(vmst, vmst->core, vmst->memory, 0, elapsedUs, 1);
+        ret = MiniRV32IMAStep(vmst, &vmst->core, vmst->memory, 0, elapsedUs, 1);
         if (3 == ret) {
-            const uint32_t syscall = vmst->core->regs[17];  // a7
-            uint32_t value = vmst->core->regs[10]; // a0
+            const uint32_t syscall = vmst->core.regs[17];  // a7
+            uint32_t value = vmst->core.regs[10]; // a0
             bool syscall_valid = false;
             // on exception we should jump to mtvec, but we handle directly
             // and skip over the ecall instruction
-            vmst->core->pc += 4;
+            vmst->core.pc += 4;
             switch(syscall) {
                 // inbuilt syscalls
                  case UVM32_SYSCALL_HALT:
@@ -180,7 +177,7 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
                                 break;
                                 case UVM32_SYSCALL_TYP_U32_RD:
                                     // pass link to r1 for user function to update
-                                    vmst->ioevt.data.syscall.val.u32p = &vmst->core->regs[11];
+                                    vmst->ioevt.data.syscall.val.u32p = &vmst->core.regs[11];
                                 break;
                             }
                             vmst->ioevt.typ = UVM32_EVT_SYSCALL;
