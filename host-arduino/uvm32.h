@@ -14,6 +14,7 @@
     X(UVM32_ERR_HUNG) \
     X(UVM32_ERR_INTERNAL_CORE) \
     X(UVM32_ERR_INTERNAL_STATE) \
+    X(UVM32_ERR_ARGS) \
 
 #define X(name) name,
 typedef enum {
@@ -28,41 +29,16 @@ typedef enum {
     UVM32_EVT_END,
 } uvm32_evt_typ_t;
 
-typedef enum {
-    UVM32_SYSCALL_TYP_BUF_TERMINATED_WR,   // data write from vm, NULL terminated string of bytes, in uvm32_evt_syscall_t.val.buf
-    UVM32_SYSCALL_TYP_VOID,     // no data
-    UVM32_SYSCALL_TYP_U32_WR,   // data write from vm, in uvm32_evt_syscall_t.val.u32
-    UVM32_SYSCALL_TYP_U32_RD,   // data read from vm, expects response in uvm32_evt_syscall_t.val.u32p
-} uvm32_syscall_typ_t;
-
-typedef uint32_t uvm32_user_syscall_code_t;
-
-// user supplied mapping from syscall to typed syscall
-typedef struct {
-    uint32_t syscall;
-    uvm32_user_syscall_code_t code;
-    uvm32_syscall_typ_t typ;
-} uvm32_mapping_t;
-
-typedef struct {
-    uint8_t *ptr;
-    uint32_t len;
-} uvm32_evt_syscall_buf_t;
-
-typedef struct {
-    uvm32_syscall_typ_t typ;
-    uvm32_user_syscall_code_t code;
-    union {
-        uvm32_evt_syscall_buf_t buf;
-        uint32_t u32;
-        uint32_t *u32p;
-    } val;
-} uvm32_evt_syscall_t;
-
 typedef struct {
     uvm32_err_t errcode;
     const char *errstr;
 } uvm32_evt_err_t;
+
+typedef struct {
+    uint32_t code;  // syscall number
+    uint32_t *ret;
+    uint32_t *params[2];
+} uvm32_evt_syscall_t;
 
 typedef struct {
     uvm32_evt_typ_t typ;
@@ -90,16 +66,33 @@ typedef enum {
 typedef struct {
     uvm32_status_t status;
     uvm32_err_t err;
-    struct MiniRV32IMAState* core;  // points at end of memory
+    struct MiniRV32IMAState core;
     uint8_t memory[UVM32_MEMORY_SIZE];
     uvm32_evt_t ioevt; // for building up in callbacks
-    const uvm32_mapping_t *mappings;
-    uint32_t numMappings;
 } uvm32_state_t;
 
-void uvm32_init(uvm32_state_t *vmst, const uvm32_mapping_t *mappings, uint32_t numMappings);
+void uvm32_init(uvm32_state_t *vmst);
 bool uvm32_load(uvm32_state_t *vmst, uint8_t *rom, int len);
 bool uvm32_hasEnded(const uvm32_state_t *vmst);
 uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter);
+
+// convenience for getptr
+typedef struct {
+    uint8_t *ptr;
+    uint32_t len;
+} uvm32_evt_syscall_buf_t;
+
+typedef enum {
+    ARG0,
+    ARG1,
+    RET
+} uvm32_arg_t;
+
+uint32_t uvm32_getval(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t);
+const char *uvm32_getcstr(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t);
+void uvm32_setval(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t, uint32_t val);
+uvm32_evt_syscall_buf_t uvm32_getbuf(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t argPtr, uvm32_arg_t argLen);
+void uvm32_clearError(uvm32_state_t *vmst);
+
 
 #endif

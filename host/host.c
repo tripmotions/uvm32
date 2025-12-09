@@ -13,28 +13,6 @@
 // stash terminal settings on startup
 static struct termios orig_termios;
 
-// syscalls exposed to vm environement
-typedef enum {
-    F_PRINT,
-    F_PRINTDEC,
-    F_PRINTHEX,
-    F_PUTC,
-    F_PRINTLN,
-    F_MILLIS,
-    F_GETC,
-} f_code_t;
-
-// Map exposed syscalls to syscalls
-const uvm32_mapping_t env[] = {
-    { .syscall = UVM32_SYSCALL_PRINTLN, .typ = UVM32_SYSCALL_TYP_BUF_TERMINATED_WR, .code = F_PRINTLN },
-    { .syscall = UVM32_SYSCALL_PRINT, .typ = UVM32_SYSCALL_TYP_BUF_TERMINATED_WR, .code = F_PRINT },
-    { .syscall = UVM32_SYSCALL_PRINTDEC, .typ = UVM32_SYSCALL_TYP_U32_WR, .code = F_PRINTDEC },
-    { .syscall = UVM32_SYSCALL_PRINTHEX, .typ = UVM32_SYSCALL_TYP_U32_WR, .code = F_PRINTHEX },
-    { .syscall = UVM32_SYSCALL_PUTC, .typ = UVM32_SYSCALL_TYP_U32_WR, .code = F_PUTC },
-    { .syscall = UVM32_SYSCALL_MILLIS, .typ = UVM32_SYSCALL_TYP_U32_RD, .code = F_MILLIS },
-    { .syscall = UVM32_SYSCALL_GETC, .typ = UVM32_SYSCALL_TYP_U32_RD, .code = F_GETC },
-};
-
 void disableRawMode(void) {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
     printf("\033[?25h");    // show cursor
@@ -165,7 +143,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    uvm32_init(&vmst, env, sizeof(env) / sizeof(env[0]));
+    uvm32_init(&vmst);
+
     if (!uvm32_load(&vmst, rom, romlen)) {
         printf("load failed!\n");
         return 1;
@@ -201,52 +180,44 @@ int main(int argc, char *argv[]) {
                 }
             break;
             case UVM32_EVT_SYSCALL:
-                switch((f_code_t)evt.data.syscall.code) {
-                    case F_PRINT:
-                        printf("%.*s", evt.data.syscall.val.buf.len, evt.data.syscall.val.buf.ptr);
-                    break;
-                    case F_PRINTLN:
-                        printf("%.*s\n", evt.data.syscall.val.buf.len, evt.data.syscall.val.buf.ptr);
-                    break;
-                    case F_PRINTDEC:
-                        printf("%d", evt.data.syscall.val.u32);
-                    break;
-                    case F_PUTC:
-                        printf("%c", evt.data.syscall.val.u32);
-                    break;
-                    case F_PRINTHEX:
-                        printf("%08x", evt.data.syscall.val.u32);
-                    break;
-                    case F_GETC: {
-                        uint8_t ch;
-                        if (poll_getch(&ch)) {
-                            *evt.data.syscall.val.u32p = ch;
-                        } else {
-                            *evt.data.syscall.val.u32p = 0xFFFFFFFF;  // nothing
+                switch(evt.data.syscall.code) {
+                    case UVM32_SYSCALL_PRINTBUF: {
+                        uvm32_evt_syscall_buf_t buf = uvm32_getbuf(&vmst, &evt, ARG0, ARG1);
+                        while(buf.len--) {
+                            printf("%02x", *buf.ptr++);
                         }
                     } break;
-                    case F_MILLIS: {
+                    case UVM32_SYSCALL_PRINT: {
+                        const char *str = uvm32_getcstr(&vmst, &evt, ARG0);
+                        printf("%s", str);
+                    } break;
+                    case UVM32_SYSCALL_PRINTLN: {
+                        const char *str = uvm32_getcstr(&vmst, &evt, ARG0);
+                        printf("%s\n", str);
+                    } break;
+                    case UVM32_SYSCALL_PRINTDEC:
+                        printf("%d", uvm32_getval(&vmst, &evt, ARG0));
+                    break;
+                    case UVM32_SYSCALL_PUTC:
+                        printf("%c", uvm32_getval(&vmst, &evt, ARG0));
+                    break;
+                    case UVM32_SYSCALL_PRINTHEX:
+                        printf("%d", uvm32_getval(&vmst, &evt, ARG0));
+                    break;
+                    case UVM32_SYSCALL_MILLIS: {
                         clock_t now = clock() / (CLOCKS_PER_SEC / 1000);
-                        *evt.data.syscall.val.u32p = now - start_time;
+                        uvm32_setval(&vmst, &evt, RET, now - start_time);
                     } break;
-                    default:    // catch any others
-                        switch(evt.data.syscall.typ) {
-                            case UVM32_SYSCALL_TYP_BUF_TERMINATED_WR:
-                                printf("UVM32_SYSCALL_TYP_BUF_TERMINATED_WR code=%d val=", evt.data.syscall.code);
-                                hexdump(evt.data.syscall.val.buf.ptr, evt.data.syscall.val.buf.len);
-                                printf("\n");
-                            break;
-                            case UVM32_SYSCALL_TYP_VOID:
-                                printf("UVM32_SYSCALL_TYP_VOID code=%d\n", evt.data.syscall.code);
-                            break;
-                            case UVM32_SYSCALL_TYP_U32_WR:
-                                printf("UVM32_SYSCALL_TYP_U32_WR code=%d val=%d (0x%08x)\n", evt.data.syscall.code, evt.data.syscall.val.u32, evt.data.syscall.val.u32);
-                            break;
-                            case UVM32_SYSCALL_TYP_U32_RD:
-                                printf("UVM32_SYSCALL_TYP_U32_RD code=%d\n", evt.data.syscall.code);
-                                *evt.data.syscall.val.u32p = 123456;
-                            break;
+                    case UVM32_SYSCALL_GETC: {
+                        uint8_t c;
+                        if (poll_getch(&c)) {
+                            uvm32_setval(&vmst, &evt, RET, c);
+                        } else {
+                            uvm32_setval(&vmst, &evt, RET, 0xFFFFFFFF);
                         }
+                    } break;
+                    default:
+                        printf("Unhandled syscall 0x%08x\n", evt.data.syscall.code);
                     break;
                 }
             break;

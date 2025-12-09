@@ -7,6 +7,9 @@
 
 #define UVM32_NULL (void *)0
 
+// On an invalid operation, an error is set in uvm32_state_t, but a valid pointer still needs to be temporarily used
+static uint32_t garbage;
+
 #ifndef UVM32_MEMCPY
 #define UVM32_MEMCPY uvm32_memcpy
 void uvm32_memcpy(void *dst, const void *src, int len) {
@@ -52,26 +55,26 @@ static void setStatus(uvm32_state_t *vmst, uvm32_status_t newStatus) {
 }
 
 static void setStatusErr(uvm32_state_t *vmst, uvm32_err_t err) {
-    setStatus(vmst, UVM32_STATUS_ERROR);
-    vmst->err = err;
+    // if already in error state, stay in the first error state
+    if (vmst->status != UVM32_STATUS_ERROR) {
+        setStatus(vmst, UVM32_STATUS_ERROR);
+        vmst->err = err;
+    }
 }
 
-void uvm32_init(uvm32_state_t *vmst, const uvm32_mapping_t *mappings, uint32_t numMappings) {
+void uvm32_init(uvm32_state_t *vmst) {
+    UVM32_MEMSET(vmst, 0x00, sizeof(uvm32_state_t));
     vmst->status = UVM32_STATUS_PAUSED;
 
-    UVM32_MEMSET(vmst->memory, 0x00, UVM32_MEMORY_SIZE);
     vmst->core.pc = MINIRV32_RAM_IMAGE_OFFSET;
     // https://projectf.io/posts/riscv-cheat-sheet/
     // setup stack pointer
     // la	sp, _sstack
     // addi	sp,sp,-16
-    vmst->core.regs[2] = (MINIRV32_RAM_IMAGE_OFFSET + UVM32_MEMORY_SIZE - sizeof(struct MiniRV32IMAState)) - 16;
+    vmst->core.regs[2] = (MINIRV32_RAM_IMAGE_OFFSET + UVM32_MEMORY_SIZE) - 16;
     vmst->core.regs[10] = 0x00;  //hart ID
     vmst->core.regs[11] = 0;
     vmst->core.extraflags |= 3;  // Machine-mode.
-
-    vmst->mappings = mappings;
-    vmst->numMappings = numMappings;
 }
 
 bool uvm32_load(uvm32_state_t *vmst, uint8_t *rom, int len) {
@@ -85,48 +88,52 @@ bool uvm32_load(uvm32_state_t *vmst, uint8_t *rom, int len) {
 }
 
 // Read C-string up to terminator and return len,ptr
-static void get_safeptr_terminated(uvm32_state_t *vmst, uint32_t addr, uint8_t terminator, uvm32_evt_syscall_buf_t *buf) {
+bool get_safeptr_null_terminated(uvm32_state_t *vmst, uint32_t addr, uvm32_evt_syscall_buf_t *buf) {
     uint32_t ptrstart = addr - MINIRV32_RAM_IMAGE_OFFSET;
     uint32_t p = ptrstart;
     if (p >= UVM32_MEMORY_SIZE) {
         setStatusErr(vmst, UVM32_ERR_MEM_RD);
-        buf->ptr = UVM32_NULL;
+        buf->ptr = (uint8_t *)UVM32_NULL;
         buf->len = 0;
-        return;
+        return false;
     }
-    while(vmst->memory[p] != terminator) {
+    while(vmst->memory[p] != '\0') {
         p++;
         if (p >= UVM32_MEMORY_SIZE) {
             setStatusErr(vmst, UVM32_ERR_MEM_RD);
-            buf->ptr = UVM32_NULL;
+            buf->ptr = (uint8_t *)UVM32_NULL;
             buf->len = 0;
-            return;
+            return false;
         }
     }
     buf->ptr = &vmst->memory[ptrstart];
     buf->len = p - ptrstart;
+    return true;
 }
 
-#if 0
-static void get_safeptr(uvm32_state_t *vmst, uint32_t addr, uint32_t len, uvm32_evt_syscall_buf_t *buf) {
+bool get_safeptr(uvm32_state_t *vmst, uint32_t addr, uint32_t len, uvm32_evt_syscall_buf_t *buf) {
     uint32_t ptrstart = addr - MINIRV32_RAM_IMAGE_OFFSET;
-    if (ptrstart + len >= UVM32_MEMORY_SIZE) {
+    if ((ptrstart > UVM32_MEMORY_SIZE) || (ptrstart + len >= UVM32_MEMORY_SIZE)) {
         setStatusErr(vmst, UVM32_ERR_MEM_RD);
+        buf->ptr = (uint8_t *)UVM32_NULL;
+        buf->len = 0;
+        return false;
     }
     buf->ptr = &vmst->memory[ptrstart];
     buf->len = len;
+    return true;
 }
-#endif
 
-
-uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) {
-    uint32_t num_instr = 0;
-
+void uvm32_clearError(uvm32_state_t *vmst) {
     if (vmst->status == UVM32_STATUS_ERROR) {
         // vm is in an error state, but user wants to continue
         // most likely after UVM32_ERR_HUNG
         vmst->status = UVM32_STATUS_PAUSED;
     }
+}
+
+uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) {
+    uint32_t num_instr = 0;
 
     if (vmst->status != UVM32_STATUS_PAUSED) {
         setStatusErr(vmst, UVM32_ERR_NOTREADY);
@@ -142,9 +149,8 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
         uint32_t ret;
         ret = MiniRV32IMAStep(vmst, &vmst->core, vmst->memory, 0, elapsedUs, 1);
         if (3 == ret) {
+            // Fetch registers used by syscall
             const uint32_t syscall = vmst->core.regs[17];  // a7
-            uint32_t value = vmst->core.regs[10]; // a0
-            bool syscall_valid = false;
             // on exception we should jump to mtvec, but we handle directly
             // and skip over the ecall instruction
             vmst->core.pc += 4;
@@ -152,46 +158,19 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
                 // inbuilt syscalls
                  case UVM32_SYSCALL_HALT:
                     setStatus(vmst, UVM32_STATUS_ENDED);
-                    syscall_valid = true;
                 break;
                 case UVM32_SYSCALL_YIELD:
                     vmst->ioevt.typ = UVM32_EVT_YIELD;
                     setStatus(vmst, UVM32_STATUS_PAUSED);
-                    syscall_valid = true;
                 break;
-
-                // user defined syscalls
                 default:
-                    // search in mappings
-                    for (int i=0;i<vmst->numMappings;i++) {
-                        if (syscall == vmst->mappings[i].syscall) {
-                            // setup ioevt.data according to mapping typ
-                            switch(vmst->mappings[i].typ) {
-                                case UVM32_SYSCALL_TYP_VOID:
-                                break;
-                                case UVM32_SYSCALL_TYP_U32_WR:
-                                    vmst->ioevt.data.syscall.val.u32 = value;
-                                break;
-                                case UVM32_SYSCALL_TYP_BUF_TERMINATED_WR:
-                                    get_safeptr_terminated(vmst, value, 0x00, &vmst->ioevt.data.syscall.val.buf);
-                                break;
-                                case UVM32_SYSCALL_TYP_U32_RD:
-                                    // pass link to r1 for user function to update
-                                    vmst->ioevt.data.syscall.val.u32p = &vmst->core.regs[11];
-                                break;
-                            }
-                            vmst->ioevt.typ = UVM32_EVT_SYSCALL;
-                            vmst->ioevt.data.syscall.code = vmst->mappings[i].code;
-                            vmst->ioevt.data.syscall.typ = vmst->mappings[i].typ;
-                            setStatus(vmst, UVM32_STATUS_PAUSED);
-                            syscall_valid = true;
-                            break;  // stop searching
-                        }
-                    }
-                    // no mapping found
-                    if (!syscall_valid) {
-                        setStatusErr(vmst, UVM32_ERR_BAD_SYSCALL);
-                    }
+                    // user defined syscalls
+                    vmst->ioevt.typ = UVM32_EVT_SYSCALL;
+                    vmst->ioevt.data.syscall.code = syscall;
+                    vmst->ioevt.data.syscall.ret = &vmst->core.regs[12];        // a2
+                    vmst->ioevt.data.syscall.params[0] = &vmst->core.regs[10];  // a0
+                    vmst->ioevt.data.syscall.params[1] = &vmst->core.regs[11];  // a1
+                    setStatus(vmst, UVM32_STATUS_PAUSED);
                 break;
             }
         } else if (ret != 0) {
@@ -235,4 +214,54 @@ bool uvm32_hasEnded(const uvm32_state_t *vmst) {
     return vmst->status == UVM32_STATUS_ENDED;
 }
 
+static uint32_t *arg_to_ptr(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t arg) {
+    switch(arg) {
+        case ARG0:
+            return evt->data.syscall.params[0];
+        break;
+        case ARG1:
+            return evt->data.syscall.params[1];
+        break;
+        case RET:
+            return evt->data.syscall.ret;
+        break;
+        default:
+            // if something invalid is passed to arg, we should never crash
+            // return a pointer to something readable
+            setStatusErr(vmst, UVM32_ERR_ARGS);
+            garbage = 0;
+            return &garbage;
+        break;
+    }
+}
+
+void uvm32_setval(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t arg, uint32_t val) {
+    *arg_to_ptr(vmst, evt, arg) = val;
+}
+
+uint32_t uvm32_getval(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t arg) {
+    return *arg_to_ptr(vmst, evt, arg);
+}
+
+const char *uvm32_getcstr(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t arg) {
+    uvm32_evt_syscall_buf_t scb;
+    if (get_safeptr_null_terminated(vmst, uvm32_getval(vmst, evt, arg), &scb)) {
+        return (const char *)scb.ptr; // we know the buffer in cpu memory is null terminated, so safe to pass back
+    } else {
+        setStatusErr(vmst, UVM32_ERR_MEM_RD);
+        garbage = 0;
+        return (const char *)&garbage;
+    }
+}
+
+uvm32_evt_syscall_buf_t uvm32_getbuf(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t argPtr, uvm32_arg_t argLen) {
+    uvm32_evt_syscall_buf_t scb;
+    if (!get_safeptr(vmst, uvm32_getval(vmst, evt, argPtr), uvm32_getval(vmst, evt, argLen), &scb)) {
+        setStatusErr(vmst, UVM32_ERR_MEM_RD);
+        garbage = 0;
+        scb.ptr = (uint8_t *)&garbage;
+        scb.len = 0;
+    }
+    return scb;
+}
 

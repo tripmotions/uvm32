@@ -4,25 +4,25 @@ const uvm32 = @cImport({
 });
 const std = @import("std");
 
-pub inline fn syscall(id: u32, param: u32) u32 {
+pub inline fn syscall(id: u32, param1: u32, param2: u32) u32 {
     var val: u32 = undefined;
     asm volatile ("ecall"
         : [val] "={a1}" (val),
-        : [param] "{a0}" (param),
+        : [param1] "{a0}" (param1), [param2] "{a1}" (param2),
           [id] "{a7}" (id),
         : .{ .memory = true });
     return val;
 }
 
 pub inline fn println(val: [:0]const u8) void {
-    _ = syscall(uvm32.UVM32_SYSCALL_PRINTLN, @intFromPtr(val.ptr));
+    _ = syscall(uvm32.UVM32_SYSCALL_PRINTLN, @intFromPtr(val.ptr), 0);
 }
 
 pub inline fn yield() void {
-    _ = syscall(uvm32.UVM32_SYSCALL_YIELD, 0);
+    _ = syscall(uvm32.UVM32_SYSCALL_YIELD, 0, 0);
 }
 
 pub inline fn putc(c:u8) void {
-    _ = syscall(uvm32.UVM32_SYSCALL_PUTC, c);
+    _ = syscall(uvm32.UVM32_SYSCALL_PUTC, c, 0);
 }
 
