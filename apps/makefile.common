@@ -1,8 +1,9 @@
 PREFIX:=riscv64-elf-
+OPT ?= -Os
 CFLAGS+=-I${TOPDIR}/common
 CFLAGS+=-fno-stack-protector
 CFLAGS+=-static-libgcc -fdata-sections -ffunction-sections
-CFLAGS+=-g -Os -march=rv32im -mabi=ilp32 -static
+CFLAGS+=-g ${OPT} -march=rv32im -mabi=ilp32 -static
 LDFLAGS:= -T ${TOPDIR}/apps/linker.ld -nostdlib -Wl,--gc-sections
 LIBS:= -lgcc # needed for softfp
 
@@ -21,8 +22,8 @@ else
 endif
 
 all_common:
-	${PREFIX}gcc -o ${PROJECT}.elf ${CFLAGS} ${LDFLAGS} ${SRCS} ${LIBS}
-	$(PREFIX)objcopy ${PROJECT}.elf -O binary ${PROJECT}.bin
+	@${PREFIX}gcc -o ${PROJECT}.elf ${CFLAGS} ${LDFLAGS} ${SRCS} ${LIBS}
+	@$(PREFIX)objcopy ${PROJECT}.elf -O binary ${PROJECT}.bin
 
 disasm_common: all
 	$(PREFIX)objdump -S -d -f ${PROJECT}.elf

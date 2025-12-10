@@ -20,7 +20,6 @@
     X(UVM32_ERR_INTERNAL_CORE) \
     X(UVM32_ERR_INTERNAL_STATE) \
     X(UVM32_ERR_ARGS) \
-    X(UVM32_ERR_STACKOVERFLOW) \
 
 #define X(name) name,
 typedef enum {
@@ -55,7 +54,7 @@ typedef struct {
 
 #define MINIRV32_DECORATE static
 #define MINI_RV32_RAM_SIZE UVM32_MEMORY_SIZE
-#define MINIRV32_POSTEXEC(pc, ir, retval) {if (retval > 0) return 3;}
+#define MINIRV32_POSTEXEC(pc, ir, retval) {if (retval > 0) return retval;}
 #ifndef MINIRV32_IMPLEMENTATION
 #define MINIRV32_STEPPROTO
 #endif

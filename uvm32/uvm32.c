@@ -141,7 +141,7 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
     uint32_t num_instr = 0;
 
     if (vmst->stack_canary != UVM32_NULL && *vmst->stack_canary != STACK_CANARY_VALUE) {
-        setStatusErr(vmst, UVM32_ERR_STACKOVERFLOW);
+        setStatusErr(vmst, UVM32_ERR_INTERNAL_CORE);
         setup_err_evt(vmst, evt);
         return num_instr;
     }
@@ -159,50 +159,58 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
         uint64_t elapsedUs = 1;
         uint32_t ret;
         ret = MiniRV32IMAStep(vmst, &vmst->core, vmst->memory, 0, elapsedUs, 1);
-        if (3 == ret) {
-            // Fetch registers used by syscall
-            const uint32_t syscall = vmst->core.regs[17];  // a7
-            // on exception we should jump to mtvec, but we handle directly
-            // and skip over the ecall instruction
-            vmst->core.pc += 4;
-            switch(syscall) {
-                // inbuilt syscalls
-                 case UVM32_SYSCALL_HALT:
-                    setStatus(vmst, UVM32_STATUS_ENDED);
-                break;
-                case UVM32_SYSCALL_STACKPROTECT: {
-                    // don't allow errant code to change it once set
-                    if (vmst->stack_canary == (uint8_t *)UVM32_NULL) {
-                        uint32_t param0 = vmst->core.regs[10]; // a0
-                        uint32_t mem_offset = param0 - MINIRV32_RAM_IMAGE_OFFSET;
+    
+        switch(ret) {
+            case 0:  // ok
+            break;
+            case 12: { // ecall
+                // Fetch registers used by syscall
+                const uint32_t syscall = vmst->core.regs[17];  // a7
+                // on exception we should jump to mtvec, but we handle directly
+                // and skip over the ecall instruction
+                vmst->core.pc += 4;
+                switch(syscall) {
+                    // inbuilt syscalls
+                     case UVM32_SYSCALL_HALT:
+                        setStatus(vmst, UVM32_STATUS_ENDED);
+                    break;
+                    case UVM32_SYSCALL_STACKPROTECT: {
+                        // don't allow errant code to change it once set
+                        if (vmst->stack_canary == (uint8_t *)UVM32_NULL) {
+                            uint32_t param0 = vmst->core.regs[10]; // a0
+                            uint32_t mem_offset = param0 - MINIRV32_RAM_IMAGE_OFFSET;
+                            mem_offset &= ~0xF; // round up by 16 bytes
+                            mem_offset += 16*4;
 
-                        // check data fits in ram
-                        if (mem_offset > UVM32_MEMORY_SIZE) {
-                            setStatusErr(vmst, UVM32_ERR_STACKOVERFLOW);
-                            setup_err_evt(vmst, evt);
+                            // check data fits in ram
+                            if (mem_offset > UVM32_MEMORY_SIZE) {
+                                setStatusErr(vmst, UVM32_ERR_INTERNAL_CORE);
+                                setup_err_evt(vmst, evt);
+                            }
+                            // check canary is inside valid memory
+                            if (mem_offset < UVM32_MEMORY_SIZE) {
+                                // set canary
+                                vmst->stack_canary = &vmst->memory[mem_offset];
+                                *vmst->stack_canary = STACK_CANARY_VALUE;
+                            }
                         }
-                        // check canary is inside valid memory
-                        if (mem_offset < UVM32_MEMORY_SIZE) {
-                            // set canary
-                            vmst->stack_canary = &vmst->memory[mem_offset];
-                            *vmst->stack_canary = STACK_CANARY_VALUE;
-                        }
-                    }
-                } break;
-                default:
-                    // user defined syscalls
-                    vmst->ioevt.typ = UVM32_EVT_SYSCALL;
-                    vmst->ioevt.data.syscall.code = syscall;
-                    vmst->ioevt.data.syscall.ret = &vmst->core.regs[12];        // a2
-                    vmst->ioevt.data.syscall.params[0] = &vmst->core.regs[10];  // a0
-                    vmst->ioevt.data.syscall.params[1] = &vmst->core.regs[11];  // a1
-                    setStatus(vmst, UVM32_STATUS_PAUSED);
-                break;
-            }
-        } else if (ret != 0) {
-            // unhandled exception
-            setStatusErr(vmst, UVM32_ERR_INTERNAL_CORE);
-            setup_err_evt(vmst, evt);
+                    } break;
+                    default:
+                        // user defined syscalls
+                        vmst->ioevt.typ = UVM32_EVT_SYSCALL;
+                        vmst->ioevt.data.syscall.code = syscall;
+                        vmst->ioevt.data.syscall.ret = &vmst->core.regs[12];        // a2
+                        vmst->ioevt.data.syscall.params[0] = &vmst->core.regs[10];  // a0
+                        vmst->ioevt.data.syscall.params[1] = &vmst->core.regs[11];  // a1
+                        setStatus(vmst, UVM32_STATUS_PAUSED);
+                    break;
+                }   // end switch(syscall)
+            } break; // end ecall
+            default:
+                // unhandled exception
+                setStatusErr(vmst, UVM32_ERR_INTERNAL_CORE);
+                setup_err_evt(vmst, evt);
+            break;
         }
 
         num_instr++;
@@ -213,7 +221,9 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
             setup_err_evt(vmst, evt);
             return num_instr;
         }
+
     }
+
 
     if (vmst->status == UVM32_STATUS_ENDED) {
         evt->typ = UVM32_EVT_END;
