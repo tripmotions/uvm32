@@ -203,6 +203,7 @@ int main(int argc, char *argv[]) {
             printf("Failed to allocate extram!\n");
             return 1;
         }
+        memset(extram_buf, 0x00, extram_len);
         uvm32_extram(&vmst, extram_buf, extram_len);
     }
 
@@ -227,6 +228,10 @@ int main(int argc, char *argv[]) {
                     isrunning = false;
                     memdump("host-ram.dump", vmst.memory, UVM32_MEMORY_SIZE);
                     printf("memory dumped to host-ram.dump, pc=0x%08x\n", vmst.core.pc);
+                    if (extram_buf != NULL) {
+                        memdump("host-extram.dump", (uint8_t *)extram_buf, extram_len);
+                        printf("extram dumped to host-extram.dump\n");
+                    }
                 }
             break;
             case UVM32_EVT_SYSCALL:
