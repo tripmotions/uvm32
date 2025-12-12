@@ -1,8 +1,8 @@
 #include "uvm32_target.h"
 
 uint32_t* framebuffer = (uint32_t*)UVM32_EXTRAM_BASE;
-#define WIDTH 800
-#define HEIGHT 600
+#define WIDTH 320
+#define HEIGHT 200
 
 void main(void) {
     uint8_t r = 0, g = 0, b = 0;
@@ -15,14 +15,12 @@ void main(void) {
                 b = (x ^ y);
                 r += framecount;
                 g += framecount * 2;
-                b += framecount * 5;
+                b += framecount * 3;
                 framebuffer[y * WIDTH + x] = (r << 24) | (g << 16) | (b << 8) | 0xFF;
             }
         }
-        framecount++;
-        if (framecount % 2 == 0) {
-            printdec(framecount++);
-            println("");
-        }
+        render(UVM32_EXTRAM_BASE, WIDTH*HEIGHT*4);
+        printdec(framecount++);
+        println("");
     }
 }
