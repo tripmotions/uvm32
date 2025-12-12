@@ -9,7 +9,7 @@ LIBS = `pkg-config sdl3 --libs --static`
 CFLAGS += `pkg-config sdl3 --cflags`
 endif
 
-#CFLAGS += -Wall -Werror
+CFLAGS += -Wall -Werror
 CFLAGS += -pedantic -std=c99 -O3
 CFLAGS += -DUVM32_MEMORY_SIZE=$(shell echo "1024 * 1024 * 8" | bc)
 

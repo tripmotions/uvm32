@@ -101,8 +101,6 @@ int main(int argc, char *argv[]) {
     SDL_Renderer *renderer = NULL;
     SDL_Window *screen = NULL;
     SDL_Event event;
-    SDL_Surface *surface = NULL;
-    SDL_Texture *tex = NULL;
     SDL_Texture *render_target = NULL;
 
     // memory for vmst is very large, so allocate
@@ -263,14 +261,15 @@ int main(int argc, char *argv[]) {
                     case UVM32_SYSCALL_RENDER: {
                         uvm32_evt_syscall_buf_t buf = uvm32_getbuf(vmst, &evt, ARG0, ARG1);
 
+                        // copy into texture
                         void* dst;
-                        const unsigned char* src = buf.ptr;
+                        const uint8_t* src = buf.ptr;
                         int src_pitch = WIDTH * 4;
                         int dst_pitch;
                         if (SDL_LockTexture(render_target, NULL, &dst, &dst_pitch)) {
                             for (int y = 0; y < HEIGHT; y++) {
                                 memcpy(dst, src, src_pitch);
-                                dst = (unsigned char*)dst + dst_pitch;
+                                dst = (uint8_t*)dst + dst_pitch;
                                 src += src_pitch;
                             }
                             SDL_UnlockTexture(render_target);
