@@ -7,8 +7,8 @@ UVM32_MEMORY_SIZE ?= 16384
 CFLAGS +=-std=c99
 CFLAGS += -Wall
 CFLAGS += -Werror
-
 CFLAGS += -DUVM32_MEMORY_SIZE=${UVM32_MEMORY_SIZE}
+CFLAGS += -fprofile-arcs -ftest-coverage
 
 SUITE_NAME=tests
 
@@ -31,6 +31,6 @@ test/test_runners/${SUITE_NAME}_Runner.c: test/${SUITE_NAME}.c
 	@ruby $(UNITY_ROOT)/auto/generate_test_runner.rb test/${SUITE_NAME}.c  test/test_runners/${SUITE_NAME}_Runner.c
 
 clean:
-	rm -rf $(TARGET1) test/test_runners
+	rm -rf $(TARGET1) test/test_runners *.gcno *.gcda *.gcov
 	(cd rom && make clean)
 

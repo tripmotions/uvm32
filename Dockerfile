@@ -35,3 +35,7 @@ RUN apt-get install -y qemu-system-misc
 
 # host-sdl
 RUN apt-get install -y libsdl3-0 libsdl3-dev
+
+# code coverage
+RUN apt-get install -y gcovr
+

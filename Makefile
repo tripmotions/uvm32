@@ -1,12 +1,12 @@
 .PHONY: test
 
 all:
-	make -C test
+	(cd test && make clean)
 	(cd hosts && make)
 	(cd apps && make)
 
 clean:
-	make -C test clean
+	(cd test && make clean)
 	(cd hosts && make clean)
 	(cd apps && make clean)
 
