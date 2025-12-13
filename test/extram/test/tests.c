@@ -204,7 +204,7 @@ void test_extram_buf_slice(void) {
     // check for printbuf of val
     TEST_ASSERT_EQUAL(UVM32_EVT_SYSCALL, evt.typ);
     TEST_ASSERT_EQUAL(evt.data.syscall.code, UVM32_SYSCALL_PRINTBUF);
-    uvm32_slice_t buf = uvm32_arg_getbuf(&vmst, &evt, ARG0, ARG1);
+    uvm32_slice_t buf = uvm32_arg_getslice(&vmst, &evt, ARG0, ARG1);
     TEST_ASSERT_EQUAL(5, buf.len);
     TEST_ASSERT_EQUAL(0, memcmp(buf.ptr, "hello", 5));
 }
@@ -275,7 +275,7 @@ void test_extram_buf_slice_rugpull(void) {
     // remove extram
     uvm32_extram(&vmst, NULL, 0);
 
-    uvm32_slice_t buf = uvm32_arg_getbuf(&vmst, &evt, ARG0, ARG1);
+    uvm32_slice_t buf = uvm32_arg_getslice(&vmst, &evt, ARG0, ARG1);
     // check that reading from non-existent extram gives empty buffer and puts into err state
     TEST_ASSERT_EQUAL(0, buf.len);
     uvm32_run(&vmst, &evt, 100);
@@ -362,7 +362,7 @@ void test_extram_buf_slice_beyond_extram_end(void) {
     // string starts in valid extram, but no terminator will be found before hitting end of extram
 
     // check that reading from non-existent extram gives empty string and puts into err state
-    uvm32_slice_t buf = uvm32_arg_getbuf(&vmst, &evt, ARG0, ARG1);
+    uvm32_slice_t buf = uvm32_arg_getslice(&vmst, &evt, ARG0, ARG1);
     TEST_ASSERT_EQUAL(0, buf.len);
     uvm32_run(&vmst, &evt, 100);
     TEST_ASSERT_EQUAL(evt.typ, UVM32_EVT_ERR);

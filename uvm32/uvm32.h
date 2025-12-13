@@ -164,10 +164,10 @@ const char *uvm32_arg_getcstr(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t
 void uvm32_arg_setval(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t, uint32_t val);
 
 /*! Read a syscall argument pair (ptr, length) as a slice */
-uvm32_slice_t uvm32_arg_getbuf(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t argPtr, uvm32_arg_t argLen);
+uvm32_slice_t uvm32_arg_getslice(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t argPtr, uvm32_arg_t argLen);
 
 /*! Read a syscall argument pointer as a slice of known length */
-uvm32_slice_t uvm32_arg_getbuf_fixed(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t arg, uint32_t len);
+uvm32_slice_t uvm32_arg_getslice_fixed(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t arg, uint32_t len);
 
 
 /*! Setup a block of memory to act as external RAM, it will be available on in VM code at address `UVM32_EXTRAM_BASE`. The memory is not copied, so the caller must ensure it remains available until `uvm32_extram()` is called to setup a different region or the VM is ended. */

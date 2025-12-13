@@ -393,7 +393,7 @@ const char *uvm32_arg_getcstr(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t
     }
 }
 
-uvm32_slice_t uvm32_arg_getbuf(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t argPtr, uvm32_arg_t argLen) {
+uvm32_slice_t uvm32_arg_getslice(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t argPtr, uvm32_arg_t argLen) {
     uvm32_slice_t scb;
     if (!get_safeptr(vmst, uvm32_arg_getval(vmst, evt, argPtr), uvm32_arg_getval(vmst, evt, argLen), &scb)) {
         setStatusErr(vmst, UVM32_ERR_MEM_RD);
@@ -404,7 +404,7 @@ uvm32_slice_t uvm32_arg_getbuf(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_
     return scb;
 }
 
-uvm32_slice_t uvm32_arg_getbuf_fixed(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t argPtr, uint32_t len) {
+uvm32_slice_t uvm32_arg_getslice_fixed(uvm32_state_t *vmst, uvm32_evt_t *evt, uvm32_arg_t argPtr, uint32_t len) {
     uvm32_slice_t scb;
     if (!get_safeptr(vmst, uvm32_arg_getval(vmst, evt, argPtr), len, &scb)) {
         setStatusErr(vmst, UVM32_ERR_MEM_RD);

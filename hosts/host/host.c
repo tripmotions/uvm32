@@ -237,7 +237,7 @@ int main(int argc, char *argv[]) {
             case UVM32_EVT_SYSCALL:
                 switch(evt.data.syscall.code) {
                     case UVM32_SYSCALL_PRINTBUF: {
-                        uvm32_slice_t buf = uvm32_arg_getbuf(&vmst, &evt, ARG0, ARG1);
+                        uvm32_slice_t buf = uvm32_arg_getslice(&vmst, &evt, ARG0, ARG1);
                         while(buf.len--) {
                             printf("%02x", *buf.ptr++);
                         }
