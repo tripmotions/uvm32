@@ -182,7 +182,7 @@ bool get_safeptr_null_terminated(uvm32_state_t *vmst, uint32_t addr, uvm32_slice
     }
 }
 
-bool get_safeptr(uvm32_state_t *vmst, uint32_t addr, uint32_t len, uvm32_slice_t *buf) {
+static bool get_safeptr(uvm32_state_t *vmst, uint32_t addr, uint32_t len, uvm32_slice_t *buf) {
     if (MINIRV32_MMIO_RANGE(addr)) {
         if (vmst->_extram == NULL) {
             return false;
@@ -408,7 +408,7 @@ uvm32_slice_t uvm32_arg_getslice_fixed(uvm32_state_t *vmst, uvm32_evt_t *evt, uv
     return scb;
 }
 
-uint32_t _uvm32_extramLoad(void *userdata, uint32_t addr, uint32_t accessTyp) {
+static uint32_t _uvm32_extramLoad(void *userdata, uint32_t addr, uint32_t accessTyp) {
     uvm32_state_t *vmst = (uvm32_state_t *)userdata;
     addr -= UVM32_EXTRAM_BASE;
 
@@ -445,7 +445,7 @@ uint32_t _uvm32_extramLoad(void *userdata, uint32_t addr, uint32_t accessTyp) {
     return 0;
 }
 
-uint32_t _uvm32_extramStore(void *userdata, uint32_t addr, uint32_t val, uint32_t accessTyp) {
+static uint32_t _uvm32_extramStore(void *userdata, uint32_t addr, uint32_t val, uint32_t accessTyp) {
     uvm32_state_t *vmst = (uvm32_state_t *)userdata;
     addr -= UVM32_EXTRAM_BASE;
     if (vmst->_extram != NULL) {
@@ -489,34 +489,34 @@ uint32_t uvm32_getProgramCounter(const uvm32_state_t *vmst) {
 }
 
 // Access of memory bus in alignment safe way
-void _uvm32_store4(void *p, uint32_t off, uint32_t val) {
+static void _uvm32_store4(void *p, uint32_t off, uint32_t val) {
     UVM32_MEMCPY((uint8_t *)p + off, &val, 4);
 }
-void _uvm32_store2(void *p, uint32_t off, uint16_t val) {
+static void _uvm32_store2(void *p, uint32_t off, uint16_t val) {
     UVM32_MEMCPY((uint8_t *)p + off, &val, 2);
 }
-void _uvm32_store1(void *p, uint32_t off, uint8_t val) {
+static void _uvm32_store1(void *p, uint32_t off, uint8_t val) {
     ((uint8_t *)p)[off] = val;
 }
-uint32_t _uvm32_load4(void *p, uint32_t off) {
+static uint32_t _uvm32_load4(void *p, uint32_t off) {
     uint32_t v;
     UVM32_MEMCPY(&v, (uint8_t *)p + off, 4);
     return v;
 }
-uint16_t _uvm32_load2(void *p, uint32_t off) {
+static uint16_t _uvm32_load2(void *p, uint32_t off) {
     uint16_t v;
     UVM32_MEMCPY(&v, (uint8_t *)p + off, 2);
     return v;
 }
-uint8_t _uvm32_load1(void *p, uint32_t off) {
+static uint8_t _uvm32_load1(void *p, uint32_t off) {
     return ((uint8_t *)p)[off];
 }
-int16_t _uvm32_load2s(void *p, uint32_t off) {
+static int16_t _uvm32_load2s(void *p, uint32_t off) {
     int16_t v;
     UVM32_MEMCPY(&v, (uint8_t *)p + off, 2);
     return v;
 }
-int8_t _uvm32_load1s(void *p, uint32_t off) {
+static int8_t _uvm32_load1s(void *p, uint32_t off) {
     return ((int8_t *)p)[off];
 }
 
