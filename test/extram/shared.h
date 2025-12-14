@@ -16,5 +16,9 @@ enum {
     TEST12,
     TEST13,
     TEST14,
+    TEST15,
+    TEST16,
+    TEST17,
+    TEST18,
 };
 

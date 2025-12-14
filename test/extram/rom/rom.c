@@ -77,7 +77,24 @@ void main(void) {
             // pass a string beyond end of extram
             println((uint32_t)UVM32_EXTRAM_BASE);   // extram has been shrunk, this is now out of bounds,
         } break;
-
+        case TEST15: {
+            int8_t *p = (int8_t *)UVM32_EXTRAM_BASE;
+            p[7] = -42; // single byte write
+            yield(0);
+        } break;
+        case TEST16: {
+            int8_t *p = (int8_t *)UVM32_EXTRAM_BASE;
+            printdec(p[7]); // single byte read 
+        } break;
+        case TEST17: {
+            int16_t *p = (int16_t *)UVM32_EXTRAM_BASE;
+            p[7] = -1234; // short write
+            yield(0);
+        } break;
+        case TEST18: {
+            int16_t *p = (int16_t *)UVM32_EXTRAM_BASE;
+            printdec(p[7]); // short read
+        } break;
     }
 }
 
