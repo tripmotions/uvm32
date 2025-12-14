@@ -254,6 +254,7 @@ uint32_t uvm32_run(uvm32_state_t *vmst, uvm32_evt_t *evt, uint32_t instr_meter) 
     while(vmst->_status == UVM32_STATUS_RUNNING && instr_meter > 0) {
         uint64_t elapsedUs = 1;
         uint32_t ret;
+
         ret = MiniRV32IMAStep(vmst, &vmst->_core, vmst->_memory, elapsedUs, 1);
         instr_meter--;
     
@@ -420,22 +421,22 @@ uint32_t _uvm32_extramLoad(void *userdata, uint32_t addr, uint32_t accessTyp) {
             // Any other value will have caused UVM32_ERR_INTERNAL_CORE
             switch(accessTyp) {
                 case 0:
-                    return ((int8_t *)vmst->_extram)[addr];
+                    return _uvm32_load1s(vmst->_extram, addr);
                 break;
                 case 1:
-                    return ((int16_t *)vmst->_extram)[addr/2];
+                    return _uvm32_load2s(vmst->_extram, addr);
                 break;
                 case 2:
-                    return ((uint32_t *)vmst->_extram)[addr / 4];
+                    return _uvm32_load4(vmst->_extram, addr);
                 break;
                 case 5:
-                    return ((uint16_t *)vmst->_extram)[addr/2];
+                    return _uvm32_load2(vmst->_extram, addr);
                 break;
                 // have a default case to keep coverage check happy
                 // no other values are possible here
                 default:    // fall through
                 case 4:
-                    return ((uint8_t *)vmst->_extram)[addr];
+                    return _uvm32_load1(vmst->_extram, addr);
                 break;
 
             }
@@ -454,15 +455,15 @@ uint32_t _uvm32_extramStore(void *userdata, uint32_t addr, uint32_t val, uint32_
         if (addr < vmst->_extramLen) {
             switch(accessTyp) {
                 case 1:
-                    ((uint16_t *)vmst->_extram)[addr/2] = val;
+                    _uvm32_store2(vmst->_extram, addr, val);
                 break;
                 case 2:
-                    ((uint32_t *)vmst->_extram)[addr/4] = val;
+                    _uvm32_store4(vmst->_extram, addr, val);
                 break;
                 // no other values are valid here and will be stopped above
                 default: // fall through
                 case 0:
-                    ((uint8_t *)vmst->_extram)[addr] = val;
+                    _uvm32_store1(vmst->_extram, addr, val);
                 break;
             }
             vmst->_extramDirty = true;
@@ -488,5 +489,37 @@ const uint8_t *uvm32_getMemory(const uvm32_state_t *vmst) {
 
 uint32_t uvm32_getProgramCounter(const uvm32_state_t *vmst) {
     return vmst->_core.pc;
+}
+
+// Access of memory bus in alignment safe way
+void _uvm32_store4(void *p, uint32_t off, uint32_t val) {
+    UVM32_MEMCPY((uint8_t *)p + off, &val, 4);
+}
+void _uvm32_store2(void *p, uint32_t off, uint16_t val) {
+    UVM32_MEMCPY((uint8_t *)p + off, &val, 2);
+}
+void _uvm32_store1(void *p, uint32_t off, uint8_t val) {
+    ((uint8_t *)p)[off] = val;
+}
+uint32_t _uvm32_load4(void *p, uint32_t off) {
+    uint32_t v;
+    UVM32_MEMCPY(&v, (uint8_t *)p + off, 4);
+    return v;
+}
+uint16_t _uvm32_load2(void *p, uint32_t off) {
+    uint16_t v;
+    UVM32_MEMCPY(&v, (uint8_t *)p + off, 2);
+    return v;
+}
+uint8_t _uvm32_load1(void *p, uint32_t off) {
+    return ((uint8_t *)p)[off];
+}
+int16_t _uvm32_load2s(void *p, uint32_t off) {
+    int16_t v;
+    UVM32_MEMCPY(&v, (uint8_t *)p + off, 2);
+    return v;
+}
+int8_t _uvm32_load1s(void *p, uint32_t off) {
+    return ((int8_t *)p)[off];
 }
 

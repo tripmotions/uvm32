@@ -51,6 +51,23 @@ uint32_t _uvm32_extramLoad(void *userdata, uint32_t addr, uint32_t accessTyp);
 uint32_t _uvm32_extramStore(void *userdata, uint32_t addr, uint32_t val, uint32_t accessTyp);
 #define MINIRV32_HANDLE_MEM_LOAD_CONTROL( addy, rval ) rval = _uvm32_extramLoad(userdata, addy, ( ir >> 12 ) & 0x7);
 #define MINIRV32_HANDLE_MEM_STORE_CONTROL( addy, val ) if( _uvm32_extramStore(userdata, addy, val, ( ir >> 12 ) & 0x7) ) return val;
+void _uvm32_store4(void *p, uint32_t off, uint32_t val);
+void _uvm32_store2(void *p, uint32_t off, uint16_t val);
+void _uvm32_store1(void *p, uint32_t off, uint8_t val);
+uint32_t _uvm32_load4(void *p, uint32_t off);
+uint16_t _uvm32_load2(void *p, uint32_t off);
+uint8_t _uvm32_load1(void *p, uint32_t off);
+int16_t _uvm32_load2s(void *p, uint32_t off);
+int8_t _uvm32_load1s(void *p, uint32_t off);
+#define MINIRV32_CUSTOM_MEMORY_BUS
+    #define MINIRV32_STORE4( ofs, val ) _uvm32_store4(image, ofs, val)
+    #define MINIRV32_STORE2( ofs, val ) _uvm32_store2(image, ofs, val)
+    #define MINIRV32_STORE1( ofs, val ) _uvm32_store1(image, ofs, val)
+    #define MINIRV32_LOAD4( ofs ) _uvm32_load4(image, ofs)
+    #define MINIRV32_LOAD2( ofs ) _uvm32_load2(image, ofs)
+    #define MINIRV32_LOAD1( ofs ) _uvm32_load1(image, ofs)
+    #define MINIRV32_LOAD2_SIGNED( ofs ) _uvm32_load2s(image, ofs)
+    #define MINIRV32_LOAD1_SIGNED( ofs ) _uvm32_load1s(image, ofs)
 #ifndef MINIRV32_IMPLEMENTATION
 #define MINIRV32_STEPPROTO
 #endif
