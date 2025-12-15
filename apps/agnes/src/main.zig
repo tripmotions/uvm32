@@ -75,24 +75,28 @@ fn submain() !void {
     agnes.agnes_set_input(ag, &ag_input, 0);
 
     while(true) {
-        if (!agnes.agnes_next_frame(ag)) {
-            try console.print("Next frame failed!\n", .{});
-            try console.flush();
-        }
-
-        var i:usize = 0;
-        for (0..agnes.AGNES_SCREEN_HEIGHT) |y| {
-            for (0..agnes.AGNES_SCREEN_WIDTH) |x| {
-                const c = agnes.agnes_get_screen_pixel(ag, @intCast(x), @intCast(y));
-                const c_val = @as(u32, @intCast(0xFF)) << 24 | @as(u32, @intCast(c.b)) << 16 | @as(u32, @intCast(c.g)) << 8 | @as(u32, @intCast(c.r));
-                gfxFramebuffer[i] = c_val;
-                i+=1;
-            }
-        }
-
         checkKeys();
+        var new_frame:bool = false;
+        _ = agnes.agnes_tick(ag, &new_frame);
 
-        uvm.render(@ptrCast(&gfxFramebuffer), WIDTH * HEIGHT * 4);
+        if (new_frame) {
+            if (!agnes.agnes_next_frame(ag)) {
+                try console.print("Next frame failed!\n", .{});
+                try console.flush();
+            }
+
+            var i:usize = 0;
+            for (0..agnes.AGNES_SCREEN_HEIGHT) |y| {
+                for (0..agnes.AGNES_SCREEN_WIDTH) |x| {
+                    const c = agnes.agnes_get_screen_pixel(ag, @intCast(x), @intCast(y));
+                    const c_val = @as(u32, @intCast(0xFF)) << 24 | @as(u32, @intCast(c.b)) << 16 | @as(u32, @intCast(c.g)) << 8 | @as(u32, @intCast(c.r));
+                    gfxFramebuffer[i] = c_val;
+                    i+=1;
+                }
+            }
+
+            uvm.render(@ptrCast(&gfxFramebuffer), WIDTH * HEIGHT * 4);
+        }
     }
 }
 
