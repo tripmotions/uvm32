@@ -22,6 +22,8 @@ int HEIGHT = 200;
 #define WINDOW_WIDTH WIDTH*3
 #define WINDOW_HEIGHT HEIGHT*3
 
+static uint32_t *profiling_data = NULL;
+
 // circular buffer of keypresses, so vm code can read them as it's ready
 typedef struct {
     bool down;
@@ -38,6 +40,29 @@ static int keyBufferRd = 0;
 static int16_t audioBuffer[AUDIOBUFFER_LEN];
 static int audioBufferWr = 0;
 static int audioBufferRd = 0;
+
+void profiling_init(uvm32_state_t *vmst) {
+    profiling_data = malloc(sizeof(uint32_t) * UVM32_MEMORY_SIZE);
+    memset(profiling_data, 0x00, sizeof(uint32_t) * UVM32_MEMORY_SIZE);
+}
+
+void profiling_update(uvm32_state_t *vmst) {
+    uint32_t pc_rel = uvm32_getProgramCounter(vmst) - 0x80000000;
+    if (pc_rel > UVM32_MEMORY_SIZE) {
+        // don't handle PC being in extram
+        printf("pc > memory size! %08x\n", pc_rel);
+    } else {
+        profiling_data[pc_rel] += 1;
+    }
+}
+
+void profiling_dump(void) {
+    for (int i=0;i<UVM32_MEMORY_SIZE;i++) {
+        if (profiling_data[i] > 0) {
+            printf("Addr %08x hit %d times\n", 0x80000000 + i, profiling_data[i]);
+        }
+    }
+}
 
 void key_enq(uint16_t scancode, bool down) {
     keyBuffer[keyBufferWr].scancode = scancode;
@@ -126,6 +151,7 @@ void usage(const char *name) {
     printf("  -h                            show help\n");
     printf("  -i <num instructions>         max instrs before requiring a syscall\n");
     printf("  -e <extram size>              numbers of bytes for extram\n");
+    printf("  -p                            enable profiling\n");
     exit(1);
 }
 
@@ -168,6 +194,7 @@ int main(int argc, char *argv[]) {
     SDL_Window *screen = NULL;
     SDL_Event event;
     SDL_Texture *render_target = NULL;
+    bool use_profiling = false;
 
     // memory for vmst is very large, so allocate
     vmst = (uvm32_state_t *)malloc(sizeof(uvm32_state_t));
@@ -177,7 +204,7 @@ int main(int argc, char *argv[]) {
     }
 
     // parse commandline args
-    while ((c = getopt(argc, argv, "hi:e:W:H:")) != -1) {
+    while ((c = getopt(argc, argv, "hi:e:W:H:p")) != -1) {
         switch(c) {
             case 'h':
                 usage(argv[0]);
@@ -196,6 +223,9 @@ int main(int argc, char *argv[]) {
             break;
             case 'H':
                 HEIGHT = strtoll(optarg, NULL, 10);
+            break;
+            case 'p':
+                use_profiling = true;
             break;
         }
     }
@@ -261,6 +291,10 @@ int main(int argc, char *argv[]) {
     }
     SDL_ResumeAudioStreamDevice(stream);
 
+    if (use_profiling) {
+        profiling_init(vmst);
+    }
+
     while (isrunning) {
         SDL_PollEvent(&event);
 
@@ -278,6 +312,10 @@ int main(int argc, char *argv[]) {
                     key_enq(event.key.scancode, false);
                 }
             break;
+        }
+
+        if (use_profiling) {
+            profiling_update(vmst);
         }
 
         total_instrs += uvm32_run(vmst, &evt, max_instrs_per_run);   // num instructions before vm considered hung
@@ -395,6 +433,10 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Executed total of %lu instructions and %lu syscalls\n", (unsigned long)total_instrs, (unsigned long)num_syscalls);
+
+    if (use_profiling) {
+        profiling_dump();
+    }
 
     free(rom);
     if (extram_buf != NULL) {
