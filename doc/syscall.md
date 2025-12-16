@@ -17,7 +17,7 @@ Both arguments and the return type are `uint32_t` meaning they are large enough 
 
 To do anything useful, VM code must make syscalls and you will likely need to define some which make sense for your application.
 
-(**Note**, uvm32 assumes that hosts are the same endianness as the vm - little endian. If this is not the case, you will have a bad time, patches welcome...)
+(**Note**, uvm32 assumes that hosts are the same endianness as the vm - little endian. If this is not the case, you will have a bad time, patches welcome... see https://github.com/Vali0004/mini-rv32ima-be/blob/master/mini-rv32ima/mini-rv32ima.h)
 
 ## Inbuilt systems
 
