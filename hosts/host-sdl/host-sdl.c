@@ -377,7 +377,7 @@ int main(int argc, char *argv[]) {
                         uvm32_arg_setval(vmst, &evt, RET, SDL_GetTicks());
                     } break;
                     case UVM32_SYSCALL_RAND:
-                        uvm32_arg_setval(&vmst, &evt, RET, rand());
+                        uvm32_arg_setval(vmst, &evt, RET, rand());
                     break;
                     case UVM32_SYSCALL_GETC: {
                         uvm32_arg_setval(vmst, &evt, RET, 0xFFFFFFFF);
